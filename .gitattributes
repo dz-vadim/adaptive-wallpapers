@@ -1,0 +1,7 @@
+# Нормалізація закінчень рядків для тексту
+* text=auto eol=lf
+
+# Бінарні файли — без diff/нормалізації
+*.png binary
+*.jpg binary
+*.ipynb -text

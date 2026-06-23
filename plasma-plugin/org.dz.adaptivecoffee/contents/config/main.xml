@@ -14,5 +14,15 @@
         <entry name="IntervalMinutes" type="Int">
             <default>15</default>
         </entry>
+        <!-- "auto" або примусове значення -->
+        <entry name="SeasonMode" type="String">
+            <default>auto</default>
+        </entry>
+        <entry name="TimeMode" type="String">
+            <default>auto</default>
+        </entry>
+        <entry name="WeatherMode" type="String">
+            <default>auto</default>
+        </entry>
     </group>
 </kcfg>

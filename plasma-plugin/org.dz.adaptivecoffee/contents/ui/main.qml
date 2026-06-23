@@ -1,59 +1,65 @@
 import QtQuick
+import org.kde.plasma.plasmoid
+import "logic.js" as L
 
-// Adaptive Coffee wallpaper: обирає кадр за поточними сезоном, часом доби
-// і погодою. Сезон/час — з годинника (працює офлайн). Погода — з wttr.in;
-// якщо мережі немає, погода обирається ВИПАДКОВО (реалістичний ухил).
-Item {
+// Adaptive Coffee wallpaper (Plasma 6): кадр за сезоном, часом доби і погодою.
+// Сезон/час — з годинника (офлайн), або примусово з налаштувань. Погода — з
+// wttr.in; без мережі обирається ВИПАДКОВО. Якщо файл відсутній — фолбек на
+// найближчий доступний (без чорного екрана).
+WallpaperItem {
     id: root
 
-    // --- конфіг (із налаштувань плагіна; є дефолти) ---
     readonly property string folder:
-        (wallpaper.configuration.Folder && wallpaper.configuration.Folder.length > 0)
-        ? wallpaper.configuration.Folder
+        (configuration.Folder && configuration.Folder.length > 0)
+        ? configuration.Folder
         : "/home/dz/Pictures/wallpapers_archive/wallpapers"
-    readonly property string location: wallpaper.configuration.Location || ""
+    readonly property string location: configuration.Location || ""
     readonly property int intervalMin:
-        wallpaper.configuration.IntervalMinutes > 0 ? wallpaper.configuration.IntervalMinutes : 15
+        configuration.IntervalMinutes > 0 ? configuration.IntervalMinutes : 15
 
     property string weather: "clear"
-    property string current: ""
+    property string current: ""        // активний файл (для прев'ю/діагностики)
 
-    readonly property var seasons: ["winter", "spring", "summer", "autumn"]
-    readonly property var times: ["morning", "day", "evening", "night"]
-    readonly property var weathers: ["clear", "cloudy", "rain_snow"]
+    // черга кандидатів для фолбеку
+    property var _cands: []
+    property int _idx: 0
+    property string _pending: ""
 
-    function pad2(n) { return (n < 10 ? "0" : "") + n }
+    // --- вибір і завантаження з фолбеком ---
+    function update() {
+        var sName = L.resolveSeason(configuration.SeasonMode)
+        var tName = L.resolveTime(configuration.TimeMode)
+        var names = L.candidates(sName, tName, weather)
+        _cands = names.map(function (n) { return folder + "/" + n })
+        _idx = 0
+        tryNext()
+    }
+    function tryNext() {
+        if (_idx >= _cands.length) return         // нічого не знайшли — лишаємо як є
+        _pending = _cands[_idx]
+        if ("file://" + _pending === base.source.toString()) return  // вже показано
+        probe.source = "file://" + _pending
+    }
 
-    function seasonIdx(month) {            // month 1..12
-        if (month === 12 || month <= 2) return 0   // winter
-        if (month <= 5) return 1                    // spring
-        if (month <= 8) return 2                    // summer
-        return 3                                    // autumn
-    }
-    function timeIdx(hour) {
-        if (hour >= 6 && hour < 11) return 0   // morning
-        if (hour >= 11 && hour < 17) return 1  // day
-        if (hour >= 17 && hour < 21) return 2  // evening
-        return 3                               // night
-    }
-    function fileFor(sI, tI, wI) {
-        var num = sI * 12 + tI * 3 + wI + 1    // 1..48, як у генераторі
-        return pad2(num) + "_" + seasons[sI] + "_" + times[tI] + "_" + weathers[wI] + ".png"
-    }
-    function mapWeatherCode(code) {
-        if (code === 113) return "clear"
-        if ([116, 119, 122, 143, 248, 260].indexOf(code) !== -1) return "cloudy"
-        return "rain_snow"
-    }
-    // Офлайн-фолбек: випадкова погода з реалістичним ухилом.
-    function randomWeather() {
-        var r = Math.random()
-        if (r < 0.50) return "clear"
-        if (r < 0.85) return "cloudy"
-        return "rain_snow"
+    // прихований лоадер: перевіряє, чи файл вантажиться, перш ніж показати
+    Image {
+        id: probe
+        visible: false
+        asynchronous: true
+        cache: false
+        onStatusChanged: {
+            if (status === Image.Ready) {
+                current = _pending
+                show(_pending)
+            } else if (status === Image.Error) {
+                _idx += 1
+                tryNext()
+            }
+        }
     }
 
     // --- зображення + плавний crossfade ---
+    Rectangle { anchors.fill: parent; color: "#101418" }   // фон, поки нема картинки
     Image {
         id: base
         anchors.fill: parent
@@ -75,27 +81,20 @@ Item {
         from: 0; to: 1; duration: 1200; easing.type: Easing.InOutQuad
         onFinished: { base.source = top.source; top.opacity = 0 }
     }
-
     function show(path) {
         var url = "file://" + path
-        if (base.source.toString() === "") {   // перший показ — без анімації
-            base.source = url
-            return
-        }
+        if (base.source.toString() === "") { base.source = url; return }
         if (url === base.source.toString() && top.opacity === 0) return
         top.source = url
         fade.restart()
     }
 
-    function update() {
-        var now = new Date()
-        var sI = seasonIdx(now.getMonth() + 1)
-        var tI = timeIdx(now.getHours())
-        var wI = weathers.indexOf(weather); if (wI < 0) wI = 0
-        var path = folder + "/" + fileFor(sI, tI, wI)
-        if (path !== current) { current = path; show(path) }
+    // --- погода ---
+    function refresh() {
+        var mode = configuration.WeatherMode || "auto"
+        if (mode !== "auto") { weather = mode; update(); return }
+        fetchWeather()
     }
-
     function fetchWeather() {
         var url = "https://wttr.in/" + encodeURIComponent(location) + "?format=j1"
         var xhr = new XMLHttpRequest()
@@ -105,23 +104,31 @@ Item {
             try {
                 if (xhr.status === 200) {
                     var j = JSON.parse(xhr.responseText)
-                    weather = mapWeatherCode(parseInt(j.current_condition[0].weatherCode))
+                    weather = L.mapWeatherCode(parseInt(j.current_condition[0].weatherCode))
                     ok = true
                 }
             } catch (e) { ok = false }
-            if (!ok) weather = randomWeather()   // немає мережі → випадково
+            if (!ok) weather = L.randomWeather()
             update()
         }
         try { xhr.open("GET", url); xhr.send() }
-        catch (e) { weather = randomWeather(); update() }
+        catch (e) { weather = L.randomWeather(); update() }
     }
 
     Timer {
         interval: Math.max(1, intervalMin) * 60000
         running: true
         repeat: true
-        onTriggered: fetchWeather()   // оновлюємо погоду + кадр щотакту
+        onTriggered: refresh()
+    }
+    // реагуємо на зміну примусових налаштувань одразу
+    Connections {
+        target: root.configuration
+        function onSeasonModeChanged() { update() }
+        function onTimeModeChanged() { update() }
+        function onWeatherModeChanged() { refresh() }
+        function onFolderChanged() { update() }
     }
 
-    Component.onCompleted: { update(); fetchWeather() }
+    Component.onCompleted: { update(); refresh() }
 }
