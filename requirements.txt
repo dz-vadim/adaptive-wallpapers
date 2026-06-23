@@ -1,0 +1,8 @@
+# активний пайплайн
+google-genai>=2.9.0
+pillow>=10.0.0
+python-dotenv>=1.0.0
+
+# лише для archive/clean_reference.py (застарілий opencv-підхід):
+# opencv-python-headless>=4.8.0
+# numpy>=1.24.0

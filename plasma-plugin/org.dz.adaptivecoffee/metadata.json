@@ -1,0 +1,15 @@
+{
+    "KPackageStructure": "Plasma/Wallpaper",
+    "KPlugin": {
+        "Authors": [
+            {
+                "Name": "dz-vadim"
+            }
+        ],
+        "Description": "Adapts the wallpaper to the current season, time of day and weather",
+        "Id": "org.dz.adaptivecoffee",
+        "License": "MIT",
+        "Name": "Adaptive Coffee",
+        "Version": "1.0"
+    }
+}
