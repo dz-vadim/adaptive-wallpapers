@@ -15,7 +15,29 @@ the desktop wallpaper via the Win32 API.
   - `pip install pillow` is only needed if you also run image-generation/editing
     tooling — skip it otherwise.
 
-## How to run
+## Option 1 — prebuilt exe (no Python needed)
+
+Grab **adaptive-wallpaper-windows.zip** from the
+[Releases](https://github.com/dz-vadim/adaptive-wallpapers/releases) page and
+extract it anywhere. You get `adaptive-wallpaper.exe` next to a `wallpapers/`
+folder (the exe looks for `wallpapers/` beside itself).
+
+```bat
+adaptive-wallpaper.exe
+adaptive-wallpaper.exe --dry-run
+```
+
+Schedule it (no Python required):
+
+```bat
+schtasks /create /sc minute /mo 15 /tn AdaptiveWallpaper /tr "C:\path\to\adaptive-wallpaper.exe"
+```
+
+> The exe is built with Nuitka (no UPX) but **unsigned**, so SmartScreen or an
+> antivirus may warn on first run — choose *More info → Run anyway*. A signed
+> build would remove this; it needs a code-signing certificate.
+
+## Option 2 — run the Python script
 
 The `WALLPAPERS` path in the script is relative to the repo, so run it from the
 repository root:

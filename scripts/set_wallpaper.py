@@ -25,8 +25,12 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from scenes import NUMBER, SEASONS, TIMES_OF_DAY, WEATHER, numbered  # noqa: E402
 
-ROOT = Path(__file__).resolve().parent.parent
-WALLPAPERS = ROOT / "wallpapers"
+# Тека з кадрами: поряд із exe (Nuitka onefile кладе __file__ у temp, тож
+# беремо шлях самого exe) або корінь репо при звичайному запуску.
+if "__compiled__" in globals():
+    WALLPAPERS = Path(sys.argv[0]).resolve().parent / "wallpapers"
+else:
+    WALLPAPERS = Path(__file__).resolve().parent.parent / "wallpapers"
 
 # Місяць → сезон (північна півкуля).
 MONTH_SEASON = {12: "winter", 1: "winter", 2: "winter",
