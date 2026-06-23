@@ -29,19 +29,20 @@ jobs:
       # менш «підозрілим» для евристик.
       - name: Build exe (Nuitka, no UPX)
         working-directory: scripts
-        run: >
-          python -m nuitka
-          --onefile
-          --assume-yes-for-downloads
-          --include-module=scenes
-          --company-name=dz-vadim
-          --product-name=Adaptive Coffee Wallpaper
-          --file-version=1.0.0.0
-          --product-version=1.0.0.0
-          --file-description=Sets the desktop wallpaper by season, time and weather
-          --output-dir=../dist
-          --output-filename=adaptive-wallpaper.exe
-          set_wallpaper.py
+        shell: pwsh
+        run: |
+          python -m nuitka `
+            --onefile `
+            --assume-yes-for-downloads `
+            --include-module=scenes `
+            "--company-name=dz-vadim" `
+            "--product-name=Adaptive Coffee Wallpaper" `
+            "--file-version=1.0.0.0" `
+            "--product-version=1.0.0.0" `
+            "--file-description=Sets the desktop wallpaper by season, time and weather" `
+            --output-dir=../dist `
+            --output-filename=adaptive-wallpaper.exe `
+            set_wallpaper.py
 
       - name: Package bundle (exe + wallpapers)
         shell: pwsh
