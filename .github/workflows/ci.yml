@@ -1,0 +1,64 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  python:
+    name: Python lint & compile
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # Intentionally do NOT install requirements.txt (google-genai, pillow, ...).
+      # py_compile only parses/byte-compiles (no imports resolved) and ruff lints
+      # statically, so the heavy runtime deps are not needed here.
+      - name: Install ruff
+        run: pip install ruff
+
+      - name: Ruff check
+        run: ruff check scripts/
+
+      - name: Byte-compile all scripts
+        run: python -m py_compile scripts/*.py
+
+  qml:
+    name: QML lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # qt6-declarative-dev-tools provides the Qt6 qmllint binary (qmllint6).
+      - name: Install Qt6 qmllint
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y qt6-declarative-dev-tools
+
+      # Best-effort QML lint.
+      #
+      # The Plasma QML files import org.kde.plasma.plasmoid and org.kde.kirigami,
+      # which are NOT installed in CI, so qmllint cannot resolve those modules.
+      # We run with --bare (no default/auto imports) so qmllint focuses on the
+      # files themselves rather than pulling in an environment it can't fully
+      # satisfy. Unresolved Plasma/Kirigami imports are still reported as warnings.
+      #
+      # Genuine *syntax* errors will surface in the log. Because import-resolution
+      # failures are unavoidable here and would otherwise fail the build, this job
+      # is marked continue-on-error so it never blocks a merge; treat its output as
+      # advisory and read the log for real syntax problems.
+      - name: Run qmllint
+        continue-on-error: true
+        run: |
+          # Locate the Qt6 qmllint binary (named qmllint6 on Ubuntu, sometimes qmllint).
+          QMLLINT="$(command -v qmllint6 || command -v qmllint)"
+          echo "Using: $QMLLINT"
+          "$QMLLINT" --version || true
+          "$QMLLINT" --bare plasma-plugin/org.dz.adaptivecoffee/contents/ui/*.qml

@@ -6,10 +6,13 @@
                 "Name": "dz-vadim"
             }
         ],
-        "Description": "Adapts the wallpaper to the current season, time of day and weather",
+        "Category": "Wallpaper",
+        "Description": "Adapts the wallpaper to the current season, time of day and weather; also a carousel mode",
+        "Icon": "preferences-desktop-wallpaper",
         "Id": "org.dz.adaptivecoffee",
         "License": "MIT",
         "Name": "Adaptive Coffee",
-        "Version": "1.0"
+        "Version": "1.0",
+        "Website": "https://github.com/dz-vadim/adaptive-wallpapers"
     }
 }

@@ -6,8 +6,8 @@
 """
 import os
 import time
-from pathlib import Path
 from io import BytesIO
+from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 
@@ -141,7 +141,7 @@ def generate_image(client, image_bytes: bytes, mime: str, prompt: str,
         except Exception as e:
             if _is_credits_depleted(e):
                 # фатально: ретраї не допоможуть, зупиняємо весь прогін
-                raise CreditsExhausted(str(e)[:200])
+                raise CreditsExhausted(str(e)[:200]) from e
             if _is_transient(e) and attempt < MAX_RETRIES:
                 delay = RETRY_BASE_DELAY * (2 ** (attempt - 1))
                 print(f"   ⏳ {str(e)[:80]} — ретрай через {delay}s "

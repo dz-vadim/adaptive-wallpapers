@@ -24,5 +24,16 @@
         <entry name="WeatherMode" type="String">
             <default>auto</default>
         </entry>
+        <!-- "adaptive" (за сезоном/часом/погодою) або "carousel" -->
+        <entry name="Mode" type="String">
+            <default>adaptive</default>
+        </entry>
+        <!-- імена відмічених файлів для каруселі (порожньо = усі 48) -->
+        <entry name="CarouselImages" type="StringList">
+            <default></default>
+        </entry>
+        <entry name="CarouselIntervalMinutes" type="Int">
+            <default>30</default>
+        </entry>
     </group>
 </kcfg>

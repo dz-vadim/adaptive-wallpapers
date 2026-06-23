@@ -1,0 +1,16 @@
+# Ruff configuration for the wallpapers_archive Python scripts.
+# Sensible defaults: default rule set (pyflakes + pycodestyle errors),
+# line length 100. Nothing aggressive is ignored.
+line-length = 100
+target-version = "py312"
+
+[lint]
+# Default selection (E, F) plus common, low-noise extras.
+# E = pycodestyle errors, F = pyflakes, W = pycodestyle warnings,
+# I = import sorting, UP = pyupgrade, B = flake8-bugbear.
+select = ["E", "F", "W", "I", "UP", "B"]
+# Свідомо лишені стильові правила:
+#   E501 — довгі приклади команд/URL у докстрингах;
+#   E701 — компактні guard-рядки `if cond: return`;
+#   E402 — навмисний sys.path.insert перед локальним import у scripts/.
+ignore = ["E501", "E701", "E402"]

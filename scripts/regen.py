@@ -19,9 +19,16 @@ import argparse
 import time
 from pathlib import Path
 
-from _gemini import (ROOT, MODEL, make_client, build_config, generate_image,
-                     save_image, CreditsExhausted)
-from scenes import build_scene, render_prompt, parse_name, ALL_NAMES, numbered
+from _gemini import (
+    MODEL,
+    ROOT,
+    CreditsExhausted,
+    build_config,
+    generate_image,
+    make_client,
+    save_image,
+)
+from scenes import ALL_NAMES, build_scene, numbered, parse_name, render_prompt
 
 BASE_IMAGE_PATH = ROOT / "reference" / "_reference.png"
 OUTPUT_DIR = ROOT / "wallpapers"
@@ -73,7 +80,7 @@ def main():
     try:
         scenes = {n: build_scene(*parse_name(n)) for n in args.names}
     except ValueError as e:
-        raise SystemExit(f"❌ {e}")
+        raise SystemExit(f"❌ {e}") from e
 
     if not BASE_IMAGE_PATH.exists():
         raise SystemExit(f"❌ Немає референсу: {BASE_IMAGE_PATH}")
@@ -105,7 +112,7 @@ def main():
     total = len(plan)
     errors = []
     print(f"🚀 Перегенерація: {total} зображень\n")
-    for i, (name, out, scene) in enumerate(plan, 1):
+    for i, (_name, out, scene) in enumerate(plan, 1):
         print(f"[{i}/{total}] {out.name} …")
         try:
             data = generate_image(client, image_bytes, mime,

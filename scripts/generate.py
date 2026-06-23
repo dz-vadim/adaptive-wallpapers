@@ -19,9 +19,16 @@ import argparse
 import time
 from pathlib import Path
 
-from _gemini import (ROOT, MODEL, make_client, build_config, generate_image,
-                     save_image, CreditsExhausted)
-from scenes import all_jobs, render_prompt, TEST_CASES, numbered
+from _gemini import (
+    MODEL,
+    ROOT,
+    CreditsExhausted,
+    build_config,
+    generate_image,
+    make_client,
+    save_image,
+)
+from scenes import TEST_CASES, all_jobs, numbered, render_prompt
 
 # --- Конфіг -------------------------------------------------------------------
 BASE_IMAGE_PATH = ROOT / "reference" / "_reference.png"

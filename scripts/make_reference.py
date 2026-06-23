@@ -12,8 +12,7 @@ Image ("Nano Banana Pro"): підвищує якість/різкість/нас
 """
 import argparse
 
-from _gemini import (ROOT, MODEL, make_client, build_config, generate_image,
-                     save_image)
+from _gemini import MODEL, ROOT, build_config, generate_image, make_client, save_image
 
 SRC = ROOT / "reference" / "_original.jpg"    # вхід: оригінал 1920x1080
 OUT = ROOT / "reference" / "_reference.png"   # вихід: чистий якісний майстер

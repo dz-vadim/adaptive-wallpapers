@@ -23,7 +23,7 @@ import urllib.request
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from scenes import numbered, SEASONS, TIMES_OF_DAY, WEATHER, NUMBER  # noqa: E402
+from scenes import NUMBER, SEASONS, TIMES_OF_DAY, WEATHER, numbered  # noqa: E402
 
 ROOT = Path(__file__).resolve().parent.parent
 WALLPAPERS = ROOT / "wallpapers"
@@ -91,7 +91,7 @@ def resolve_file(season: str, time: str, weather: str) -> Path | None:
     return None
 
 
-def set_wallpaper(path: Path) -> bool:
+def _set_wallpaper_linux(path: Path) -> bool:
     """KDE Plasma: plasma-apply-wallpaperimage."""
     try:
         subprocess.run(["plasma-apply-wallpaperimage", str(path)],
@@ -101,6 +101,33 @@ def set_wallpaper(path: Path) -> bool:
         print("❌ Немає plasma-apply-wallpaperimage (потрібен KDE Plasma).")
     except subprocess.CalledProcessError as e:
         print(f"❌ plasma-apply-wallpaperimage: {e.stderr.strip() or e}")
+    return False
+
+
+def _set_wallpaper_windows(path: Path) -> bool:
+    """Windows: SystemParametersInfoW (потрібен абсолютний шлях)."""
+    import ctypes  # windll існує лише на Windows
+    SPI_SETDESKWALLPAPER = 20
+    SPIF_UPDATEINIFILE_SENDCHANGE = 3  # SPIF_UPDATEINIFILE | SPIF_SENDWININICHANGE
+    abs_path = str(path.resolve())
+    try:
+        ok = ctypes.windll.user32.SystemParametersInfoW(
+            SPI_SETDESKWALLPAPER, 0, abs_path, SPIF_UPDATEINIFILE_SENDCHANGE)
+        if ok:
+            return True
+        print("❌ SystemParametersInfoW повернув 0 (не вдалось встановити).")
+    except Exception as e:
+        print(f"❌ Windows: не вдалось встановити шпалеру ({e}).")
+    return False
+
+
+def set_wallpaper(path: Path) -> bool:
+    """Встановити шпалеру залежно від платформи."""
+    if sys.platform.startswith("linux"):
+        return _set_wallpaper_linux(path)
+    if sys.platform == "win32":
+        return _set_wallpaper_windows(path)
+    print(f"❌ Платформа '{sys.platform}' не підтримується.")
     return False
 
 
