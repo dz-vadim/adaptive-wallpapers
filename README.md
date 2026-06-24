@@ -4,8 +4,9 @@
 
 Генерація набору шпалер «неонова кав'ярня» під **сезон × час доби × погода**
 (4 × 4 × 3 = 48) на основі одного референсу через Gemini 3 Pro Image
-(«Nano Banana Pro»), image-to-image. Плюс плагін шпалер KDE Plasma, що
-автоматично ставить потрібний кадр.
+(«Nano Banana Pro»), image-to-image. Плюс два способи автоматично ставити
+потрібний кадр: нативний плагін KDE Plasma і кросплатформний застосунок (PyQt6,
+трей) для GNOME/XFCE/Windows/macOS.
 
 ## Структура
 
@@ -18,9 +19,12 @@
 │   ├── generate.py         # 2. генерує всі 48 шпалер із референсу
 │   ├── regen.py            # 3. перегенерує ОКРЕМІ кадри за іменем (на вибір)
 │   └── set_wallpaper.py    #    ставить шпалеру за поточними умовами (CLI/таймер)
-├── plasma-plugin/          # плагін шпалер KDE Plasma (адаптивний фон)
-│   ├── org.dz.adaptivecoffee/   # сам плагін (QML)
+├── plasma-plugin/          # плагін шпалер KDE Plasma (адаптивний фон, QML)
+│   ├── org.dz.adaptivecoffee/   # сам плагін
 │   └── install.sh          #    встановлення + активація
+├── app/                    # кросплатформний застосунок (PyQt6, трей)
+│   └── adaptive_wallpaper/ #    рушій, GUI, інсталятор — для не-Plasma і Windows
+├── docs/                   # app.md (застосунок), build.md (збірка), windows.md
 ├── reference/              # вхідні зображення (оригінал + майстер-референс)
 ├── wallpapers/             # вихід: 48 готових шпалер (NN_<season>_<time>_<weather>.png)
 ├── notebook/               # початковий Colab-ноутбук (історія, без виводів)
@@ -154,18 +158,29 @@ plasma-plugin/install.sh        # встановити + активувати
 погоди, прев'ю активного кадру, а також **режим «Carousel»** — циклічна зміна
 відмічених кадрів із заданою періодичністю.
 
-**Скрипт + systemd-таймер** (інші DE / відладка):
+**Кросплатформний застосунок (PyQt6) — для не-Plasma і Windows:** трей-іконка,
+що сама ставить кадр за сезоном/часом/погодою на GNOME, XFCE, Cinnamon, MATE,
+Windows, macOS. Шлях до зображень визначається автоматично, є GUI-налаштування
+(режим, тека з Browse, локація, інтервал, ручний форс, прев'ю) та інсталятор,
+що розпаковує зображення в системну теку, пише дефолтний конфіг і додає в
+автозапуск.
 ```fish
-.venv/bin/python scripts/set_wallpaper.py            # поставити зараз
-.venv/bin/python scripts/set_wallpaper.py --dry-run  # лише показати вибір
+cd app && pip install PyQt6
+python -m adaptive_wallpaper            # трей-застосунок
+python -m adaptive_wallpaper --once     # поставити раз і вийти (для планувальника)
+python -m adaptive_wallpaper --install  # розпакувати зображення + автозапуск
 ```
+Готові бінарники (Linux/Windows) — у [Releases](https://github.com/dz-vadim/adaptive-wallpapers/releases)
+(збираються в CI на тег `v*`). Деталі: [docs/app.md](docs/app.md),
+збірка власноруч — [docs/build.md](docs/build.md).
 
-**Windows:** той самий скрипт кросплатформений (`SystemParametersInfo`) —
-див. [docs/windows.md](docs/windows.md) (планувальник задач; без crossfade).
+**Простий CLI-скрипт** (KDE, відладка): `scripts/set_wallpaper.py` —
+`--dry-run`, `--weather`, `--time`, `--location`. Windows-нюанси —
+[docs/windows.md](docs/windows.md).
 
-> **Для інших користувачів/публікації:** дефолтна тека шпалер у плагіні —
-> абсолютний шлях власника репо. Після `clone` вкажи свою теку в налаштуваннях
-> плагіна (Browse) або в `--folder`/конфізі. (i18n рядків — у планах.)
+> **Шляхи портативні:** і плагін, і застосунок визначають теку зі шпалерами
+> самі (плагін — через `install.sh`, застосунок — автодетектом). Захардкоджених
+> особистих шляхів немає. (i18n рядків — у планах.)
 
 ## Посилання
 

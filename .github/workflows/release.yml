@@ -1,7 +1,8 @@
-name: Release Windows exe
+name: Release app binaries
 
-# Збирає Windows-exe (Nuitka, без UPX) і публікує у GitHub Release.
-# Тригер — пуш тегу версії, напр.:  git tag v1.0.0 && git push origin v1.0.0
+# Збирає GUI-застосунок (трей) під Linux і Windows через Nuitka й публікує
+# бінарники + бандл зі шпалерами в GitHub Release.
+# Тригер — пуш тегу версії:  git tag v1.1.0 && git push origin v1.1.0
 on:
   push:
     tags:
@@ -11,38 +12,89 @@ permissions:
   contents: write   # потрібно для створення Release
 
 jobs:
-  windows-exe:
-    runs-on: windows-latest
+  # ---------------- Linux ----------------
+  linux:
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
 
-      - name: Install Nuitka
-        run: python -m pip install nuitka
+      - name: Install build deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y patchelf libxcb-cursor0
+          python -m pip install nuitka PyQt6
 
-      # Nuitka компілює Python у справжній C/exe — значно менше хибних
-      # спрацювань антивірусів, ніж self-extracting PyInstaller. UPX не
-      # використовуємо (теж тригер AV). Версійні метадані роблять exe
-      # менш «підозрілим» для евристик.
-      - name: Build exe (Nuitka, no UPX)
-        working-directory: scripts
+      # Nuitka компілює у справжній C/ELF — менше хибних спрацювань захисту,
+      # ніж self-extracting. PyQt6-плагін підтягує потрібні Qt-бібліотеки.
+      - name: Build (Nuitka, PyQt6)
+        working-directory: app
+        run: |
+          python -m nuitka \
+            --onefile \
+            --assume-yes-for-downloads \
+            --enable-plugin=pyqt6 \
+            --output-dir=../dist \
+            --output-filename=adaptive-wallpaper \
+            run.py
+
+      - name: Package bundle (binary + wallpapers)
+        run: |
+          mkdir -p bundle
+          cp dist/adaptive-wallpaper bundle/
+          cp -r wallpapers bundle/wallpapers
+          cp docs/app.md bundle/README.txt || true
+          tar -C bundle -czf adaptive-wallpaper-linux.tar.gz .
+
+      - name: Upload
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/adaptive-wallpaper
+            adaptive-wallpaper-linux.tar.gz
+          body: |
+            ## Adaptive Coffee Wallpaper — binaries
+
+            - **adaptive-wallpaper-linux.tar.gz** / **adaptive-wallpaper-windows.zip**
+              — GUI tray app + усі 48 шпалер. Розпакуй і запусти бінарник.
+            - Окремі бінарники — без шпалер (вкажи теку в налаштуваннях або
+              `--folder`, або поклади `wallpapers/` поруч).
+
+            Перший запуск ставить шпалеру в трей; права адміністратора не потрібні.
+            Білди **без code-signing** — SmartScreen/антивірус може попередити
+            на першому запуску (*More info → Run anyway*).
+
+  # ---------------- Windows ----------------
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install build deps
+        run: python -m pip install nuitka PyQt6
+
+      - name: Build (Nuitka, PyQt6, no console)
+        working-directory: app
         shell: pwsh
         run: |
           python -m nuitka `
             --onefile `
             --assume-yes-for-downloads `
-            --include-module=scenes `
+            --enable-plugin=pyqt6 `
+            --windows-console-mode=disable `
             "--company-name=dz-vadim" `
             "--product-name=Adaptive Coffee Wallpaper" `
-            "--file-version=1.0.0.0" `
-            "--product-version=1.0.0.0" `
+            "--file-version=1.1.0.0" `
+            "--product-version=1.1.0.0" `
             "--file-description=Sets the desktop wallpaper by season, time and weather" `
             --output-dir=../dist `
             --output-filename=adaptive-wallpaper.exe `
-            set_wallpaper.py
+            run.py
 
       - name: Package bundle (exe + wallpapers)
         shell: pwsh
@@ -50,21 +102,12 @@ jobs:
           New-Item -ItemType Directory -Force -Path bundle | Out-Null
           Copy-Item dist/adaptive-wallpaper.exe bundle/
           Copy-Item -Recurse wallpapers bundle/wallpapers
-          if (Test-Path docs/windows.md) { Copy-Item docs/windows.md bundle/README.txt }
+          if (Test-Path docs/app.md) { Copy-Item docs/app.md bundle/README.txt }
           Compress-Archive -Path bundle/* -DestinationPath adaptive-wallpaper-windows.zip -Force
 
-      - name: Publish to GitHub Release
+      - name: Upload
         uses: softprops/action-gh-release@v2
         with:
           files: |
             dist/adaptive-wallpaper.exe
             adaptive-wallpaper-windows.zip
-          body: |
-            ## Windows build (Nuitka, unsigned)
-
-            **adaptive-wallpaper-windows.zip** — exe + усі 48 шпалер. Розпакуй і
-            запланируй у Task Scheduler (див. README.txt усередині).
-
-            ℹ️ Збірка без code-signing. Якщо SmartScreen попередить —
-            *More info → Run anyway*. Для повної довіри потрібен підписаний
-            білд (окремий сертифікат).

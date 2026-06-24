@@ -8,6 +8,15 @@ secrets.*
 **/__pycache__/
 *.pyc
 
+# артефакти збірки застосунку (Nuitka/PyInstaller)
+dist/
+build/
+*.build/
+*.dist/
+*.onefile-build/
+*.egg-info/
+app/bundle/
+
 # службове / тимчасове
 wallpapers/_variations/
 *.part

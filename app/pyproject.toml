@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "adaptive-wallpaper"
+version = "1.0.0"
+description = "Cross-platform desktop app that sets the wallpaper by season, time of day and weather"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "dz-vadim" }]
+dependencies = ["PyQt6>=6.5"]
+
+[project.urls]
+Homepage = "https://github.com/dz-vadim/adaptive-wallpapers"
+
+[project.gui-scripts]
+adaptive-wallpaper = "adaptive_wallpaper.__main__:main"
+
+[project.scripts]
+adaptive-wallpaper-cli = "adaptive_wallpaper.__main__:main"
+
+[tool.setuptools]
+packages = ["adaptive_wallpaper"]

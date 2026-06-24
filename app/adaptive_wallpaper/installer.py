@@ -1,0 +1,140 @@
+"""Інсталятор: розпаковує зображення в системну теку, пише дефолтний конфіг
+і налаштовує автозапуск. Кросплатформно (Linux .desktop, Windows реєстр,
+macOS LaunchAgent). Усе — у профіль користувача, без прав адміністратора.
+"""
+from __future__ import annotations
+
+import shutil
+import sys
+from pathlib import Path
+
+from . import __app_id__, __app_name__, paths
+from . import config as cfg
+
+
+def _launch_command() -> list[str]:
+    """Команда, якою стартувати застосунок (для автозапуску)."""
+    if getattr(sys, "frozen", False) or "__compiled__" in globals():
+        return [str(Path(sys.argv[0]).resolve())]
+    return [sys.executable, "-m", "adaptive_wallpaper"]
+
+
+# ---------------- автозапуск ----------------
+def _autostart_linux(enable: bool) -> bool:
+    d = Path.home() / ".config" / "autostart"
+    f = d / f"{__app_id__}.desktop"
+    if not enable:
+        f.unlink(missing_ok=True)
+        return True
+    d.mkdir(parents=True, exist_ok=True)
+    cmd = " ".join(_launch_command())
+    f.write_text(
+        "[Desktop Entry]\n"
+        "Type=Application\n"
+        f"Name={__app_name__}\n"
+        f"Exec={cmd}\n"
+        "Icon=preferences-desktop-wallpaper\n"
+        "Terminal=false\n"
+        "X-GNOME-Autostart-enabled=true\n",
+        encoding="utf-8")
+    return True
+
+
+def _autostart_windows(enable: bool) -> bool:
+    import winreg
+    run_key = r"Software\Microsoft\Windows\CurrentVersion\Run"
+    name = "AdaptiveWallpaper"
+    try:
+        with winreg.OpenKey(winreg.HKEY_CURRENT_USER, run_key, 0,
+                            winreg.KEY_SET_VALUE) as k:
+            if enable:
+                parts = _launch_command()
+                val = " ".join(f'"{p}"' if " " in p else p for p in parts)
+                winreg.SetValueEx(k, name, 0, winreg.REG_SZ, val)
+            else:
+                try:
+                    winreg.DeleteValue(k, name)
+                except FileNotFoundError:
+                    pass
+        return True
+    except OSError:
+        return False
+
+
+def _autostart_macos(enable: bool) -> bool:
+    d = Path.home() / "Library" / "LaunchAgents"
+    f = d / "com.adaptivewallpaper.agent.plist"
+    if not enable:
+        f.unlink(missing_ok=True)
+        return True
+    d.mkdir(parents=True, exist_ok=True)
+    args = "".join(f"    <string>{p}</string>\n" for p in _launch_command())
+    f.write_text(
+        '<?xml version="1.0" encoding="UTF-8"?>\n'
+        '<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" '
+        '"http://www.apple.com/DTDs/PropertyList-1.0.dtd">\n'
+        '<plist version="1.0"><dict>\n'
+        '  <key>Label</key><string>com.adaptivewallpaper.agent</string>\n'
+        f'  <key>ProgramArguments</key><array>\n{args}  </array>\n'
+        '  <key>RunAtLoad</key><true/>\n'
+        '</dict></plist>\n',
+        encoding="utf-8")
+    return True
+
+
+def set_autostart(enable: bool) -> bool:
+    if sys.platform.startswith("linux"):
+        return _autostart_linux(enable)
+    if sys.platform == "win32":
+        return _autostart_windows(enable)
+    if sys.platform == "darwin":
+        return _autostart_macos(enable)
+    return False
+
+
+# ---------------- розпакування зображень ----------------
+def install_wallpapers(source: Path | None = None) -> Path | None:
+    """Скопіювати кадри з bundle у data_dir()/wallpapers. Повертає шлях теки."""
+    src = Path(source) if source else paths.find_wallpapers()
+    if not src or not src.is_dir():
+        return None
+    dest = paths.data_dir() / "wallpapers"
+    if src.resolve() == dest.resolve():
+        return dest
+    dest.mkdir(parents=True, exist_ok=True)
+    for png in src.glob("[0-9][0-9]_*.png"):
+        target = dest / png.name
+        if not target.exists() or target.stat().st_size != png.stat().st_size:
+            shutil.copy2(png, target)
+    return dest
+
+
+# ---------------- повне встановлення ----------------
+def install(*, copy_images: bool = True, autostart: bool = True,
+            source: Path | None = None) -> dict:
+    """Виконати встановлення з базовими налаштуваннями. Повертає звіт."""
+    report: dict = {"wallpapers": None, "config": None, "autostart": False}
+    folder = None
+    if copy_images:
+        folder = install_wallpapers(source)
+        report["wallpapers"] = str(folder) if folder else None
+
+    conf = cfg.load()
+    if folder:
+        conf["folder"] = str(folder)
+    conf["autostart"] = bool(autostart)
+    cfg.save(conf)
+    report["config"] = str(cfg.config_path())
+
+    if autostart:
+        report["autostart"] = set_autostart(True)
+    return report
+
+
+def uninstall(*, remove_images: bool = False) -> None:
+    set_autostart(False)
+    conf = cfg.load()
+    conf["autostart"] = False
+    cfg.save(conf)
+    if remove_images:
+        shutil.rmtree(paths.data_dir() / "wallpapers", ignore_errors=True)
