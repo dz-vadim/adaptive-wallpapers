@@ -93,8 +93,8 @@ jobs:
             --windows-console-mode=disable `
             "--company-name=dz-vadim" `
             "--product-name=Adaptive Coffee Wallpaper" `
-            "--file-version=1.1.0.0" `
-            "--product-version=1.1.0.0" `
+            "--file-version=1.2.0.0" `
+            "--product-version=1.2.0.0" `
             "--file-description=Sets the desktop wallpaper by season, time and weather" `
             --output-dir=../dist `
             --output-filename=adaptive-wallpaper.exe `
