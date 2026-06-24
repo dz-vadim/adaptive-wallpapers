@@ -53,17 +53,20 @@ Tray menu:
 Settings → **Lock screen** controls the lock-screen image independently of the
 desktop wallpaper:
 
-- **Don't change** — leave the lock screen alone.
+- **Keep original** — don't manage the lock screen. The app remembers the
+  lock screen that existed **before** it first changed anything, and switching
+  back to this mode **restores that original**.
 - **Mirror desktop wallpaper** — keep the lock screen in sync with whatever the
   app last applied to the desktop.
 - **Pick from library** — pin a specific one of the 48 frames (chosen in
   **Lock image**).
 
-Support is best-effort per platform: **KDE Plasma** works reliably (writes
-`kscreenlockerrc`). **GNOME** is attempted via
+Support is best-effort per platform: **KDE Plasma** works reliably, including
+backup/restore (reads/writes `kscreenlockerrc`). **GNOME** is attempted via
 `org.gnome.desktop.screensaver` (newer GNOME may ignore it). **Windows** needs
 the optional `winsdk` package (WinRT `LockScreen`); without it the lock screen
-is left untouched. macOS has no public lock-screen API, so it's skipped.
+is left untouched (and can't be auto-restored). macOS has no public lock-screen
+API, so it's skipped.
 
 ### Paths are automatic
 

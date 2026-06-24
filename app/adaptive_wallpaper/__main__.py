@@ -16,17 +16,16 @@ from . import wallpaper as wp
 
 
 def _apply_lock(conf: dict, folder, desktop_path) -> None:
-    """Екран блокування за конфігом (best-effort, мовчки якщо непідтримувано)."""
+    """Екран блокування за конфігом. skip = відновити оригінал до програми."""
     mode = conf.get("lock_mode", "skip")
     if mode == "mirror":
         target = desktop_path
     elif mode == "library" and conf.get("lock_file"):
         target = folder / conf["lock_file"]
     else:
-        return
-    from pathlib import Path
-    if target and Path(target).exists():
-        lockscreen.set_lockscreen(Path(target))
+        target = None
+    if lockscreen.manage_lock(conf, target):
+        cfg.save(conf)
 
 
 def _once(args) -> int:

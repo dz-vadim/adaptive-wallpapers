@@ -31,7 +31,7 @@ _TIME = [("Auto (sun-based)", "auto"), ("Morning", "morning"), ("Day", "day"),
          ("Evening", "evening"), ("Night", "night")]
 _MODE = [("Adaptive (season · time · weather)", "adaptive"),
          ("Carousel (cycle all images)", "carousel")]
-_LOCK = [("Don't change", "skip"),
+_LOCK = [("Keep original (restore pre-app)", "skip"),
          ("Mirror desktop wallpaper", "mirror"),
          ("Pick from library", "library")]
 

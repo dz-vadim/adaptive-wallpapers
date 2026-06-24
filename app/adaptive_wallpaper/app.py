@@ -154,7 +154,11 @@ class Controller(QObject):
             self._notify("Could not set the wallpaper on this desktop.")
 
     def _apply_lock(self, desktop_path: Path):
-        """Екран блокування за обраним режимом (best-effort)."""
+        """Екран блокування за обраним режимом (best-effort).
+
+        skip = «keep original» (відновити те, що було до програми);
+        mirror = поточна шпалера; library = закріплений кадр.
+        """
         mode = self.cfg.get("lock_mode", "skip")
         if mode == "mirror":
             target = desktop_path
@@ -163,9 +167,9 @@ class Controller(QObject):
             name = self.cfg.get("lock_file", "")
             target = (folder / name) if (folder and name) else None
         else:
-            return
-        if target and Path(target).exists():
-            lockscreen.set_lockscreen(Path(target))
+            target = None
+        if lockscreen.manage_lock(self.cfg, target):
+            cfg.save(self.cfg)
 
     def _notify(self, msg: str):
         self.tray.setToolTip(f"{__app_name__}\n{msg}")
