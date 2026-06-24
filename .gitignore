@@ -29,3 +29,6 @@ archive/
 
 # скріншоти
 Screenshot_*.png
+
+# відео-слайдшоу (велике, генерується make_video.py)
+*.mp4
