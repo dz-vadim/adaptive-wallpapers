@@ -3,8 +3,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from PyQt6.QtCore import QObject, QRunnable, Qt, QThreadPool, QTimer, pyqtSignal
-from PyQt6.QtGui import QAction, QColor, QIcon, QPainter, QPen, QPixmap
+from PyQt6.QtCore import QLocale, QObject, QRunnable, QThreadPool, QTimer, pyqtSignal
 from PyQt6.QtWidgets import (
     QApplication,
     QMenu,
@@ -15,28 +14,18 @@ from PyQt6.QtWidgets import (
 from . import __app_name__, __version__, engine, installer, lockscreen, paths
 from . import config as cfg
 from . import wallpaper as wp
+from .i18n import detect, set_language, tr
+from .icon import ICON_NAME, make_icon
 from .settings_dialog import SettingsDialog
 
 
-def _make_icon() -> QIcon:
-    """Іконка теми, інакше намальована філіжанка кави."""
-    themed = QIcon.fromTheme("preferences-desktop-wallpaper")
-    if not themed.isNull():
-        return themed
-    pm = QPixmap(64, 64)
-    pm.fill(Qt.GlobalColor.transparent)
-    p = QPainter(pm)
-    p.setRenderHint(QPainter.RenderHint.Antialiasing)
-    p.setBrush(QColor("#6f4e37"))
-    p.setPen(QPen(QColor("#3e2b20"), 3))
-    p.drawRoundedRect(14, 22, 28, 26, 6, 6)          # чашка
-    p.setBrush(Qt.BrushStyle.NoBrush)
-    p.drawArc(40, 26, 16, 18, -90 * 16, 180 * 16)     # вушко
-    p.setPen(QPen(QColor("#d9c7a3"), 3))
-    p.drawLine(22, 12, 22, 19)
-    p.drawLine(30, 12, 30, 19)                        # пара
-    p.end()
-    return QIcon(pm)
+def _apply_language(lang: str) -> None:
+    """Застосувати мову; 'auto' → за локаллю системи (env LANG, далі Qt)."""
+    if lang == "auto":
+        lang = detect()   # за змінними локалі (LANG/LC_*)
+        if lang == "en" and QLocale.system().name().startswith("uk"):
+            lang = "uk"   # запасний сигнал (напр. мова UI у Windows)
+    set_language(lang)
 
 
 class _Signals(QObject):
@@ -72,10 +61,12 @@ class Controller(QObject):
         self.pool = QThreadPool.globalInstance()
         self.sig = _Signals()
         self.sig.done.connect(self._on_picked)
-        self.sig.failed.connect(lambda m: self._notify(f"Update failed: {m}"))
+        self.sig.failed.connect(
+            lambda m: self._notify(tr("Update failed: {msg}").format(msg=m)))
         self._carousel_pos = 0
+        _apply_language(self.cfg.get("language", "auto"))
 
-        self.icon = _make_icon()
+        self.icon = make_icon()
         self.tray = QSystemTrayIcon(self.icon)
         self.tray.setToolTip(__app_name__)
         self.tray.activated.connect(self._on_activated)
@@ -90,19 +81,19 @@ class Controller(QObject):
     # ---- меню ----
     def _build_menu(self):
         m = QMenu()
-        self.statusAct = m.addAction("Adaptive Coffee Wallpaper")
+        self.statusAct = m.addAction(__app_name__)
         self.statusAct.setEnabled(False)
         m.addSeparator()
-        m.addAction("Update now", self.apply)
-        m.addAction("Settings…", self.open_settings)
+        m.addAction(tr("Update now"), self.apply)
+        m.addAction(tr("Settings…"), self.open_settings)
         m.addSeparator()
-        self.autostartAct = QAction("Run at login", self, checkable=True)
+        self.autostartAct = m.addAction(tr("Run at login"))
+        self.autostartAct.setCheckable(True)
         self.autostartAct.setChecked(bool(self.cfg.get("autostart", False)))
         self.autostartAct.triggered.connect(self._toggle_autostart)
-        m.addAction(self.autostartAct)
-        m.addAction("Copy wallpapers to system…", self._do_install)
+        m.addAction(tr("Copy wallpapers to system…"), self._do_install)
         m.addSeparator()
-        m.addAction("Quit", self.app.quit)
+        m.addAction(tr("Quit"), self.app.quit)
         self.tray.setContextMenu(m)
 
     def _on_activated(self, reason):
@@ -121,7 +112,7 @@ class Controller(QObject):
     def apply(self):
         folder = self._folder()
         if not folder:
-            self._notify("No wallpapers found — set the folder in Settings.")
+            self._notify(tr("No wallpapers found — set the folder in Settings."))
             return
         if self.cfg.get("mode") == "carousel":
             self._carousel_step(folder)
@@ -131,7 +122,7 @@ class Controller(QObject):
     def _carousel_step(self, folder: Path):
         files = [folder / n for n in engine.all_files() if (folder / n).exists()]
         if not files:
-            self._notify("No wallpapers found in folder.")
+            self._notify(tr("No wallpapers found in folder."))
             return
         self._carousel_pos %= len(files)
         path = files[self._carousel_pos]
@@ -140,7 +131,7 @@ class Controller(QObject):
 
     def _on_picked(self, path, name, info):
         if path is None:
-            self._notify(f"No file for {name}.")
+            self._notify(tr("No file for {name}.").format(name=name))
             return
         online = "" if info.get("online") else "  (offline guess)"
         self._set(Path(path), name, suffix=online)
@@ -151,7 +142,7 @@ class Controller(QObject):
             self.tray.setToolTip(f"{__app_name__}\n{path.name}{suffix}")
             self._apply_lock(path)
         else:
-            self._notify("Could not set the wallpaper on this desktop.")
+            self._notify(tr("Could not set the wallpaper on this desktop."))
 
     def _apply_lock(self, desktop_path: Path):
         """Екран блокування за обраним режимом (best-effort).
@@ -184,8 +175,12 @@ class Controller(QObject):
 
     def _apply_settings(self, new: dict):
         autostart_changed = new.get("autostart") != self.cfg.get("autostart")
+        lang_changed = new.get("language") != self.cfg.get("language")
         self.cfg.update(new)
         cfg.save(self.cfg)
+        if lang_changed:
+            _apply_language(self.cfg.get("language", "auto"))
+            self._build_menu()        # перебудувати меню новою мовою
         self.autostartAct.setChecked(bool(self.cfg.get("autostart")))
         if autostart_changed:
             installer.set_autostart(bool(self.cfg.get("autostart")))
@@ -207,18 +202,22 @@ class Controller(QObject):
             cfg.save(self.cfg)
             QMessageBox.information(
                 None, __app_name__,
-                f"Wallpapers copied to:\n{dest}\n\nConfig: {report['config']}")
+                tr("Wallpapers copied to:\n{dest}\n\nConfig: {config}").format(
+                    dest=dest, config=report["config"]))
         else:
             QMessageBox.warning(
                 None, __app_name__,
-                "Could not find wallpapers to copy. Put the 48 PNGs next to the "
-                "app or pick the folder in Settings.")
+                tr("Could not find wallpapers to copy. Put the 48 PNGs next to "
+                   "the app or pick the folder in Settings."))
 
 
 def run_gui() -> int:
     app = QApplication.instance() or QApplication([])
     app.setApplicationName(__app_name__)
     app.setApplicationVersion(__version__)
+    # Прив'язка до .desktop (під Wayland вікно бере іконку звідти).
+    app.setDesktopFileName(ICON_NAME)
+    app.setWindowIcon(make_icon())         # іконка у заголовку вікон / панелі
     app.setQuitOnLastWindowClosed(False)   # закриття вікна не завершує застосунок
     if not QSystemTrayIcon.isSystemTrayAvailable():
         # без трея — хоч раз поставимо шпалеру й вийдемо

@@ -22,6 +22,8 @@ from PyQt6.QtWidgets import (
 )
 
 from . import engine, paths
+from .i18n import tr
+from .icon import make_icon
 
 _WEATHER = [("Auto (live)", "auto"), ("Clear", "clear"),
             ("Cloudy", "cloudy"), ("Rain / Snow", "rain_snow")]
@@ -34,12 +36,13 @@ _MODE = [("Adaptive (season · time · weather)", "adaptive"),
 _LOCK = [("Keep original (restore pre-app)", "skip"),
          ("Mirror desktop wallpaper", "mirror"),
          ("Pick from library", "library")]
+_LANG = [("Automatic", "auto"), ("English", "en"), ("Українська", "uk")]
 
 
 def _combo(pairs: list[tuple[str, str]], value: str) -> QComboBox:
     c = QComboBox()
     for text, val in pairs:
-        c.addItem(text, val)
+        c.addItem(tr(text), val)
     i = c.findData(value)
     c.setCurrentIndex(max(0, i))
     return c
@@ -50,7 +53,8 @@ class SettingsDialog(QDialog):
 
     def __init__(self, cfg: dict, on_apply, parent=None):
         super().__init__(parent)
-        self.setWindowTitle("Adaptive Coffee Wallpaper — Settings")
+        self.setWindowTitle(tr("Adaptive Coffee Wallpaper — Settings"))
+        self.setWindowIcon(make_icon())
         self.setMinimumWidth(440)
         self._cfg = dict(cfg)
         self._on_apply = on_apply
@@ -58,54 +62,62 @@ class SettingsDialog(QDialog):
         form = QFormLayout()
         self.modeBox = _combo(_MODE, self._cfg["mode"])
         self.modeBox.currentIndexChanged.connect(self._toggle_mode)
-        form.addRow("Mode:", self.modeBox)
+        form.addRow(tr("Mode:"), self.modeBox)
 
         folderRow = QHBoxLayout()
         self.folderEdit = QLineEdit(self._cfg.get("folder", ""))
         found = paths.find_wallpapers(self._cfg.get("folder", ""))
         self.folderEdit.setPlaceholderText(
-            f"auto: {found}" if found else "auto-detect (none found yet)")
-        browse = QPushButton("Browse…")
+            f"auto: {found}" if found else tr("auto-detect (none found yet)"))
+        browse = QPushButton(tr("Browse…"))
         browse.clicked.connect(self._browse)
         folderRow.addWidget(self.folderEdit)
         folderRow.addWidget(browse)
         fw = QWidget()
         fw.setLayout(folderRow)
-        form.addRow("Wallpapers folder:", fw)
+        form.addRow(tr("Wallpapers folder:"), fw)
 
         self.locationEdit = QLineEdit(self._cfg.get("location", ""))
-        self.locationEdit.setPlaceholderText("blank = auto by IP")
-        form.addRow("Weather location:", self.locationEdit)
+        self.locationEdit.setPlaceholderText(tr("blank = auto by IP"))
+        form.addRow(tr("Weather location:"), self.locationEdit)
 
         self.intervalSpin = QSpinBox()
         self.intervalSpin.setRange(1, 240)
         self.intervalSpin.setValue(int(self._cfg.get("interval_minutes", 20)))
-        form.addRow("Update every (min):", self.intervalSpin)
+        form.addRow(tr("Update every (min):"), self.intervalSpin)
 
         self.carouselSpin = QSpinBox()
         self.carouselSpin.setRange(1, 1440)
         self.carouselSpin.setValue(int(self._cfg.get("carousel_minutes", 30)))
-        form.addRow("Carousel change (min):", self.carouselSpin)
+        form.addRow(tr("Carousel change (min):"), self.carouselSpin)
 
         self.weatherBox = _combo(_WEATHER, self._cfg.get("weather", "auto"))
         self.seasonBox = _combo(_SEASON, self._cfg.get("season", "auto"))
         self.timeBox = _combo(_TIME, self._cfg.get("time", "auto"))
-        form.addRow("Weather:", self.weatherBox)
-        form.addRow("Season:", self.seasonBox)
-        form.addRow("Time of day:", self.timeBox)
+        form.addRow(tr("Weather:"), self.weatherBox)
+        form.addRow(tr("Season:"), self.seasonBox)
+        form.addRow(tr("Time of day:"), self.timeBox)
 
         self.lockBox = _combo(_LOCK, self._cfg.get("lock_mode", "skip"))
         self.lockBox.currentIndexChanged.connect(self._toggle_lock)
-        form.addRow("Lock screen:", self.lockBox)
+        form.addRow(tr("Lock screen:"), self.lockBox)
 
         self.lockFileBox = QComboBox()
         for fn in engine.all_files():
             self.lockFileBox.addItem(fn, fn)
         j = self.lockFileBox.findData(self._cfg.get("lock_file", ""))
         self.lockFileBox.setCurrentIndex(max(0, j))
-        form.addRow("Lock image:", self.lockFileBox)
+        form.addRow(tr("Lock image:"), self.lockFileBox)
 
-        self.autostartChk = QCheckBox("Run at login")
+        self.langBox = _combo(_LANG, self._cfg.get("language", "auto"))
+        form.addRow(tr("Language:"), self.langBox)
+        self.langNote = QLabel(
+            tr("Language change applies after reopening this window."))
+        self.langNote.setWordWrap(True)
+        self.langNote.setStyleSheet("color:palette(mid);")
+        form.addRow("", self.langNote)
+
+        self.autostartChk = QCheckBox(tr("Run at login"))
         self.autostartChk.setChecked(bool(self._cfg.get("autostart", False)))
         form.addRow("", self.autostartChk)
 
@@ -117,7 +129,7 @@ class SettingsDialog(QDialog):
         self.previewName.setStyleSheet("color:palette(mid);")
 
         buttons = QDialogButtonBox()
-        applyBtn = buttons.addButton("Apply now",
+        applyBtn = buttons.addButton(tr("Apply now"),
                                      QDialogButtonBox.ButtonRole.ApplyRole)
         buttons.addButton(QDialogButtonBox.StandardButton.Close)
         applyBtn.clicked.connect(self._apply)
@@ -153,7 +165,7 @@ class SettingsDialog(QDialog):
 
     def _browse(self):
         start = self.folderEdit.text() or str(paths.find_wallpapers() or Path.home())
-        d = QFileDialog.getExistingDirectory(self, "Choose wallpapers folder", start)
+        d = QFileDialog.getExistingDirectory(self, tr("Choose wallpapers folder"), start)
         if d:
             self.folderEdit.setText(d)
 
@@ -170,12 +182,13 @@ class SettingsDialog(QDialog):
             "autostart": self.autostartChk.isChecked(),
             "lock_mode": self.lockBox.currentData(),
             "lock_file": self.lockFileBox.currentData() or "",
+            "language": self.langBox.currentData(),
         }
 
     def _refresh_preview(self):
         folder = paths.find_wallpapers(self.folderEdit.text().strip())
         if not folder:
-            self.preview.setText("no wallpapers found")
+            self.preview.setText(tr("no wallpapers found"))
             self.previewName.setText("")
             return
         # без мережі для прев'ю: лише локальна евразистика (sezon за датою, час за годиною)
@@ -195,7 +208,7 @@ class SettingsDialog(QDialog):
             self.preview.setPixmap(pm)
             self.previewName.setText(path.name)
         else:
-            self.preview.setText("no matching file")
+            self.preview.setText(tr("no matching file"))
             self.previewName.setText("")
 
     def _apply(self):

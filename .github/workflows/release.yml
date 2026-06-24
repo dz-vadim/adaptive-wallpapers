@@ -36,6 +36,8 @@ jobs:
             --onefile \
             --assume-yes-for-downloads \
             --enable-plugin=pyqt6 \
+            --include-package-data=adaptive_wallpaper \
+            --linux-icon=adaptive_wallpaper/assets/adaptive-wallpaper.png \
             --output-dir=../dist \
             --output-filename=adaptive-wallpaper \
             run.py
@@ -86,6 +88,8 @@ jobs:
             --onefile `
             --assume-yes-for-downloads `
             --enable-plugin=pyqt6 `
+            --include-package-data=adaptive_wallpaper `
+            --windows-icon-from-ico=adaptive_wallpaper/assets/adaptive-wallpaper.ico `
             --windows-console-mode=disable `
             "--company-name=dz-vadim" `
             "--product-name=Adaptive Coffee Wallpaper" `

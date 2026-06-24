@@ -10,6 +10,7 @@ from pathlib import Path
 
 from . import __app_id__, __app_name__, paths
 from . import config as cfg
+from .icon import ICON_NAME, png_path, svg_path
 
 
 def _launch_command() -> list[str]:
@@ -17,6 +18,43 @@ def _launch_command() -> list[str]:
     if getattr(sys, "frozen", False) or "__compiled__" in globals():
         return [str(Path(sys.argv[0]).resolve())]
     return [sys.executable, "-m", "adaptive_wallpaper"]
+
+
+def _desktop_entry(autostart: bool) -> str:
+    cmd = " ".join(_launch_command())
+    extra = "X-GNOME-Autostart-enabled=true\n" if autostart else ""
+    return ("[Desktop Entry]\n"
+            "Type=Application\n"
+            f"Name={__app_name__}\n"
+            f"Exec={cmd}\n"
+            f"Icon={ICON_NAME}\n"
+            f"StartupWMClass={ICON_NAME}\n"
+            "Categories=Utility;\n"
+            "Terminal=false\n" + extra)
+
+
+def install_icon_linux() -> bool:
+    """Покласти кастомну іконку в тему користувача (для Wayland/трея/.desktop).
+    Ставимо і PNG (256x256), і SVG (scalable) під однією назвою."""
+    base = Path.home() / ".local" / "share" / "icons" / "hicolor"
+    ok = False
+    for src, sub, ext in ((png_path(), "256x256", "png"),
+                          (svg_path(), "scalable", "svg")):
+        if src.exists():
+            dest = base / sub / "apps" / f"{ICON_NAME}.{ext}"
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(src, dest)
+            ok = True
+    return ok
+
+
+def install_launcher_linux() -> bool:
+    """Створити пункт у меню застосунків (для прив'язки іконки під Wayland)."""
+    d = Path.home() / ".local" / "share" / "applications"
+    d.mkdir(parents=True, exist_ok=True)
+    (d / f"{__app_id__}.desktop").write_text(_desktop_entry(autostart=False),
+                                             encoding="utf-8")
+    return True
 
 
 # ---------------- автозапуск ----------------
@@ -27,16 +65,7 @@ def _autostart_linux(enable: bool) -> bool:
         f.unlink(missing_ok=True)
         return True
     d.mkdir(parents=True, exist_ok=True)
-    cmd = " ".join(_launch_command())
-    f.write_text(
-        "[Desktop Entry]\n"
-        "Type=Application\n"
-        f"Name={__app_name__}\n"
-        f"Exec={cmd}\n"
-        "Icon=preferences-desktop-wallpaper\n"
-        "Terminal=false\n"
-        "X-GNOME-Autostart-enabled=true\n",
-        encoding="utf-8")
+    f.write_text(_desktop_entry(autostart=True), encoding="utf-8")
     return True
 
 
@@ -113,11 +142,17 @@ def install_wallpapers(source: Path | None = None) -> Path | None:
 def install(*, copy_images: bool = True, autostart: bool = True,
             source: Path | None = None) -> dict:
     """Виконати встановлення з базовими налаштуваннями. Повертає звіт."""
-    report: dict = {"wallpapers": None, "config": None, "autostart": False}
+    report: dict = {"wallpapers": None, "config": None, "autostart": False,
+                    "icon": False}
     folder = None
     if copy_images:
         folder = install_wallpapers(source)
         report["wallpapers"] = str(folder) if folder else None
+
+    # кастомна іконка + пункт меню (під Wayland вікно бере іконку з .desktop)
+    if sys.platform.startswith("linux"):
+        report["icon"] = install_icon_linux()
+        install_launcher_linux()
 
     conf = cfg.load()
     if folder:

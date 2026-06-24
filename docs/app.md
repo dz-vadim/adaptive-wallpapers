@@ -68,6 +68,12 @@ the optional `winsdk` package (WinRT `LockScreen`); without it the lock screen
 is left untouched (and can't be auto-restored). macOS has no public lock-screen
 API, so it's skipped.
 
+### Language
+
+The UI is available in **English** and **Ukrainian**. Settings → **Language**:
+*Automatic* (follows the system locale), *English* or *Українська*. The app
+ships its own icon, identical across all builds.
+
 ### Paths are automatic
 
 The wallpapers folder is discovered in this order: the folder set in Settings →
