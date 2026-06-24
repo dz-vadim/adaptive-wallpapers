@@ -10,10 +10,16 @@ import "logic.js" as L
 WallpaperItem {
     id: root
 
+    // Фолбек, якщо Folder не задано: тека wallpapers/ у корені репо,
+    // обчислена відносно цього файлу (працює при symlink-встановленні).
+    readonly property string defaultFolder: {
+        var u = Qt.resolvedUrl("../../../../wallpapers").toString()
+        return u.replace(/^file:\/\//, "").replace(/\/+$/, "")
+    }
     readonly property string folder:
         (configuration.Folder && configuration.Folder.length > 0)
         ? configuration.Folder
-        : "/home/dz/Pictures/wallpapers_archive/wallpapers"
+        : defaultFolder
     readonly property string location: configuration.Location || ""
     readonly property string mode: configuration.Mode || "adaptive"
 

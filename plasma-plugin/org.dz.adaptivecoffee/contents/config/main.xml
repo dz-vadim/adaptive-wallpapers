@@ -5,8 +5,10 @@
                           http://www.kde.org/standards/kcfg/1.0/kcfg.xsd">
     <kcfgfile name=""/>
     <group name="General">
+        <!-- Порожньо = фолбек у QML (шлях відносно плагіна). install.sh
+             вписує сюди абсолютний шлях до теки wallpapers/ при встановленні. -->
         <entry name="Folder" type="String">
-            <default>/home/dz/Pictures/wallpapers_archive/wallpapers</default>
+            <default></default>
         </entry>
         <entry name="Location" type="String">
             <default></default>

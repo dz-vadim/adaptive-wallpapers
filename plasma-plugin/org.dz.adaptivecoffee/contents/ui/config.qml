@@ -35,9 +35,12 @@ ColumnLayout {
     readonly property bool carousel: cfg_Mode === "carousel"
     property string previewWeather: "clear"
 
+    readonly property string defaultFolder: {
+        var u = Qt.resolvedUrl("../../../../wallpapers").toString()
+        return u.replace(/^file:\/\//, "").replace(/\/+$/, "")
+    }
     readonly property string previewFolder:
-        (cfg_Folder && cfg_Folder.length > 0) ? cfg_Folder
-        : "/home/dz/Pictures/wallpapers_archive/wallpapers"
+        (cfg_Folder && cfg_Folder.length > 0) ? cfg_Folder : defaultFolder
 
     function previewName() {
         var sName = L.resolveSeason(cfg_SeasonMode)
