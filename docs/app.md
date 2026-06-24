@@ -72,7 +72,14 @@ adaptive-wallpaper --folder /path/to/wallpapers
 
 ## Credits
 
-The 48 wallpapers are generated from an original reference artwork by
-**mb0sco** and **steezyasfuck** — credit to them for the source art that
-defined the composition, style and mood. The generated frames are derivative
-works of that piece.
+The 48 wallpapers are generated from an original reference artwork — a cozy
+neon coffee-shop scene. Credit to the authors of the source art that defined
+the composition, style and mood:
+
+- **Bogdan mB0sco** — artist:
+  [ArtStation](https://www.artstation.com/mb0sco) ·
+  [DeviantArt](https://www.deviantart.com/mb0sco)
+- **STEEZYASFUCK** — lofi channel the original illustration was made for:
+  [YouTube](https://www.youtube.com/channel/UCsIg9WMfxjZZvwROleiVsQg)
+
+The generated frames are derivative works of that piece.
