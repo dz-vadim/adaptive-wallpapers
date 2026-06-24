@@ -69,3 +69,10 @@ adaptive-wallpaper --install --no-autostart
 adaptive-wallpaper --uninstall             # remove autostart
 adaptive-wallpaper --folder /path/to/wallpapers
 ```
+
+## Credits
+
+The 48 wallpapers are generated from an original reference artwork by
+**mb0sco** and **steezyasfuck** — credit to them for the source art that
+defined the composition, style and mood. The generated frames are derivative
+works of that piece.
