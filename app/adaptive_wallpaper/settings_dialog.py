@@ -31,6 +31,9 @@ _TIME = [("Auto (sun-based)", "auto"), ("Morning", "morning"), ("Day", "day"),
          ("Evening", "evening"), ("Night", "night")]
 _MODE = [("Adaptive (season · time · weather)", "adaptive"),
          ("Carousel (cycle all images)", "carousel")]
+_LOCK = [("Don't change", "skip"),
+         ("Mirror desktop wallpaper", "mirror"),
+         ("Pick from library", "library")]
 
 
 def _combo(pairs: list[tuple[str, str]], value: str) -> QComboBox:
@@ -91,6 +94,17 @@ class SettingsDialog(QDialog):
         form.addRow("Season:", self.seasonBox)
         form.addRow("Time of day:", self.timeBox)
 
+        self.lockBox = _combo(_LOCK, self._cfg.get("lock_mode", "skip"))
+        self.lockBox.currentIndexChanged.connect(self._toggle_lock)
+        form.addRow("Lock screen:", self.lockBox)
+
+        self.lockFileBox = QComboBox()
+        for fn in engine.all_files():
+            self.lockFileBox.addItem(fn, fn)
+        j = self.lockFileBox.findData(self._cfg.get("lock_file", ""))
+        self.lockFileBox.setCurrentIndex(max(0, j))
+        form.addRow("Lock image:", self.lockFileBox)
+
         self.autostartChk = QCheckBox("Run at login")
         self.autostartChk.setChecked(bool(self._cfg.get("autostart", False)))
         form.addRow("", self.autostartChk)
@@ -121,9 +135,13 @@ class SettingsDialog(QDialog):
             w.currentIndexChanged.connect(self._refresh_preview)
         self.folderEdit.textChanged.connect(self._refresh_preview)
         self._toggle_mode()
+        self._toggle_lock()
         self._refresh_preview()
 
     # ---- helpers ----
+    def _toggle_lock(self):
+        self.lockFileBox.setEnabled(self.lockBox.currentData() == "library")
+
     def _toggle_mode(self):
         carousel = self.modeBox.currentData() == "carousel"
         self.intervalSpin.setEnabled(not carousel)
@@ -150,6 +168,8 @@ class SettingsDialog(QDialog):
             "season": self.seasonBox.currentData(),
             "time": self.timeBox.currentData(),
             "autostart": self.autostartChk.isChecked(),
+            "lock_mode": self.lockBox.currentData(),
+            "lock_file": self.lockFileBox.currentData() or "",
         }
 
     def _refresh_preview(self):

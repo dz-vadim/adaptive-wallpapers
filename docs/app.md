@@ -48,6 +48,23 @@ Tray menu:
   to a fixed value in Settings.
 - **Carousel** — cycle through all frames on a fixed interval.
 
+### Lock screen
+
+Settings → **Lock screen** controls the lock-screen image independently of the
+desktop wallpaper:
+
+- **Don't change** — leave the lock screen alone.
+- **Mirror desktop wallpaper** — keep the lock screen in sync with whatever the
+  app last applied to the desktop.
+- **Pick from library** — pin a specific one of the 48 frames (chosen in
+  **Lock image**).
+
+Support is best-effort per platform: **KDE Plasma** works reliably (writes
+`kscreenlockerrc`). **GNOME** is attempted via
+`org.gnome.desktop.screensaver` (newer GNOME may ignore it). **Windows** needs
+the optional `winsdk` package (WinRT `LockScreen`); without it the lock screen
+is left untouched. macOS has no public lock-screen API, so it's skipped.
+
 ### Paths are automatic
 
 The wallpapers folder is discovered in this order: the folder set in Settings →
@@ -64,6 +81,8 @@ Handy for schedulers or headless setups:
 adaptive-wallpaper --once                 # set one wallpaper and exit
 adaptive-wallpaper --once --dry-run        # show the pick, change nothing
 adaptive-wallpaper --once --weather cloudy --time evening
+adaptive-wallpaper --once --lock mirror                 # also mirror lock screen
+adaptive-wallpaper --once --lock library --lock-file 12_winter_night_rain_snow.png
 adaptive-wallpaper --install               # copy images + autostart + default config
 adaptive-wallpaper --install --no-autostart
 adaptive-wallpaper --uninstall             # remove autostart

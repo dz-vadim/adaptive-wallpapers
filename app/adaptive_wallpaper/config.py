@@ -16,6 +16,8 @@ DEFAULTS = {
     "season": "auto",            # auto | winter | spring | summer | autumn
     "time": "auto",              # auto | morning | day | evening | night
     "autostart": False,          # тримаємо синхронно з реальним станом автозапуску
+    "lock_mode": "skip",         # екран блокування: skip | mirror | library
+    "lock_file": "",             # для lock_mode=library: ім'я кадру з бібліотеки
 }
 
 

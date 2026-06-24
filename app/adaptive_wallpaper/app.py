@@ -12,7 +12,7 @@ from PyQt6.QtWidgets import (
     QSystemTrayIcon,
 )
 
-from . import __app_name__, __version__, engine, installer, paths
+from . import __app_name__, __version__, engine, installer, lockscreen, paths
 from . import config as cfg
 from . import wallpaper as wp
 from .settings_dialog import SettingsDialog
@@ -149,8 +149,23 @@ class Controller(QObject):
         ok = wp.set_wallpaper(path)
         if ok:
             self.tray.setToolTip(f"{__app_name__}\n{path.name}{suffix}")
+            self._apply_lock(path)
         else:
             self._notify("Could not set the wallpaper on this desktop.")
+
+    def _apply_lock(self, desktop_path: Path):
+        """Екран блокування за обраним режимом (best-effort)."""
+        mode = self.cfg.get("lock_mode", "skip")
+        if mode == "mirror":
+            target = desktop_path
+        elif mode == "library":
+            folder = self._folder()
+            name = self.cfg.get("lock_file", "")
+            target = (folder / name) if (folder and name) else None
+        else:
+            return
+        if target and Path(target).exists():
+            lockscreen.set_lockscreen(Path(target))
 
     def _notify(self, msg: str):
         self.tray.setToolTip(f"{__app_name__}\n{msg}")

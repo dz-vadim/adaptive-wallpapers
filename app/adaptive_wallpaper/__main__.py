@@ -10,13 +10,31 @@ from __future__ import annotations
 import argparse
 import sys
 
-from . import __app_name__, __version__, engine, installer, paths
+from . import __app_name__, __version__, engine, installer, lockscreen, paths
 from . import config as cfg
 from . import wallpaper as wp
 
 
+def _apply_lock(conf: dict, folder, desktop_path) -> None:
+    """Екран блокування за конфігом (best-effort, мовчки якщо непідтримувано)."""
+    mode = conf.get("lock_mode", "skip")
+    if mode == "mirror":
+        target = desktop_path
+    elif mode == "library" and conf.get("lock_file"):
+        target = folder / conf["lock_file"]
+    else:
+        return
+    from pathlib import Path
+    if target and Path(target).exists():
+        lockscreen.set_lockscreen(Path(target))
+
+
 def _once(args) -> int:
     conf = cfg.load()
+    if getattr(args, "lock", None):
+        conf["lock_mode"] = args.lock
+    if getattr(args, "lock_file", ""):
+        conf["lock_file"] = args.lock_file
     folder = paths.find_wallpapers(args.folder or conf.get("folder", ""))
     if not folder:
         print("❌ Не знайдено теки зі шпалерами. Вкажіть --folder або --install.")
@@ -36,6 +54,7 @@ def _once(args) -> int:
         return 0
     if wp.set_wallpaper(path):
         print(f"🖼️ Встановлено: {path.name}")
+        _apply_lock(conf, folder, path)
         return 0
     print("❌ Не вдалось встановити шпалеру на цьому робочому столі.")
     return 1
@@ -58,6 +77,10 @@ def main(argv=None) -> int:
     ap.add_argument("--season", choices=engine.SEASONS)
     ap.add_argument("--time", choices=engine.TIMES)
     ap.add_argument("--weather", choices=engine.WEATHERS)
+    ap.add_argument("--lock", choices=["skip", "mirror", "library"],
+                    help="екран блокування: не чіпати / дзеркалити / з бібліотеки")
+    ap.add_argument("--lock-file", default="",
+                    help="з --lock library: ім'я кадру (напр. 28_summer_day_clear.png)")
     args = ap.parse_args(argv)
 
     if args.uninstall:
