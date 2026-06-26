@@ -56,6 +56,7 @@ class SettingsDialog(QDialog):
         self._tr_combos: list[tuple[QComboBox, list]] = []
 
         self.setWindowIcon(make_icon())
+        self.setWindowTitle(tr("Adaptive Coffee Wallpaper — Settings"))
         self.setMinimumWidth(780)
 
         # авто-застосування з дебаунсом (реактивність)
