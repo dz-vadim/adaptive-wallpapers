@@ -35,6 +35,11 @@ with `adaptive-wallpaper.exe` next to `wallpapers/`; just run the exe.
 The lock-screen option works on Windows too (via the built-in WinRT API through
 PowerShell — no extra dependency).
 
+**Updating:** just run a newer `adaptive-wallpaper-setup.exe` — it upgrades the
+existing install in place (closing the app first if it's running). **Uninstall:**
+via *Settings → Apps* or the Start-menu uninstaller; it removes the program,
+shortcuts, the autostart entry and the per-user config/wallpapers it created.
+
 ## Option 2 — run the Python script
 
 The `WALLPAPERS` path in the script is relative to the repo, so run it from the

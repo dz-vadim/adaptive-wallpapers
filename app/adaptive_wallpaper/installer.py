@@ -193,10 +193,26 @@ def install(*, copy_images: bool = True, autostart: bool = True,
     return report
 
 
-def uninstall(*, remove_images: bool = False) -> None:
+def _remove_icon_launcher_linux() -> None:
+    """Прибрати встановлену іконку з теми й пункт меню застосунків."""
+    share = Path.home() / ".local" / "share"
+    hicolor = share / "icons" / "hicolor"
+    for p in (hicolor / "256x256" / "apps" / f"{ICON_NAME}.png",
+              hicolor / "scalable" / "apps" / f"{ICON_NAME}.svg",
+              share / "applications" / f"{__app_id__}.desktop"):
+        p.unlink(missing_ok=True)
+    _refresh_icon_cache(hicolor)
+
+
+def uninstall(*, remove_images: bool = False, remove_config: bool = False) -> None:
+    """Зняти автозапуск, прибрати іконку/лаунчер (Linux); опційно — дані/конфіг."""
     set_autostart(False)
     conf = cfg.load()
     conf["autostart"] = False
     cfg.save(conf)
+    if sys.platform.startswith("linux"):
+        _remove_icon_launcher_linux()
     if remove_images:
         shutil.rmtree(paths.data_dir() / "wallpapers", ignore_errors=True)
+    if remove_config:
+        shutil.rmtree(cfg.config_path().parent, ignore_errors=True)

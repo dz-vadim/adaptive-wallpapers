@@ -80,11 +80,14 @@ def main(argv=None) -> int:
                     help="екран блокування: не чіпати / дзеркалити / з бібліотеки")
     ap.add_argument("--lock-file", default="",
                     help="з --lock library: ім'я кадру (напр. 28_summer_day_clear.png)")
+    ap.add_argument("--purge", action="store_true",
+                    help="з --uninstall: видалити й скопійовані шпалери та конфіг")
     args = ap.parse_args(argv)
 
     if args.uninstall:
-        installer.uninstall()
-        print("✅ Автозапуск вимкнено.")
+        installer.uninstall(remove_images=args.purge, remove_config=args.purge)
+        extra = " + дані й конфіг" if args.purge else ""
+        print(f"✅ Видалено: автозапуск, іконка, пункт меню{extra}.")
         return 0
     if args.install:
         rep = installer.install(copy_images=True, autostart=not args.no_autostart)

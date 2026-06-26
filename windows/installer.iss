@@ -1,7 +1,10 @@
 ; Inno Setup script — нормальний setup.exe для Adaptive Coffee Wallpaper.
 ; Збирає standalone-білд Nuitka (dist\run.dist) + 48 шпалер у per-user
 ; інсталятор (без прав адміністратора), ярлики, опційний автозапуск.
-; Компіляція в CI:  iscc /DMyAppVersion=1.3.0 windows\installer.iss
+; Компіляція в CI:  iscc /DMyAppVersion=X.Y.Z windows\installer.iss
+; Оновлення: той самий AppId+DefaultDirName → апгрейд на місці (запущений
+; застосунок закривається). Видалення: авто-uninstaller прибирає файли, ярлики,
+; автозапуск і per-user дані/конфіг.
 
 #ifndef MyAppVersion
   #define MyAppVersion "1.0.0"
@@ -32,6 +35,10 @@ UninstallDisplayIcon={app}\{#MyAppExe}
 WizardStyle=modern
 Compression=lzma2/max
 SolidCompression=yes
+; оновлення поверх: той самий AppId+DefaultDirName → апгрейд на місці.
+; Закрити запущений застосунок (інакше exe заблокований і апгрейд впаде).
+CloseApplications=yes
+RestartApplications=no
 
 [Languages]
 Name: "en"; MessagesFile: "compiler:Default.isl"
@@ -61,3 +68,25 @@ Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; \
 [Run]
 Filename: "{app}\{#MyAppExe}"; Description: "{cm:LaunchProgram,{#MyAppName}}"; \
   Flags: nowait postinstall skipifsilent
+
+[UninstallRun]
+; закрити застосунок перед видаленням, щоб файли не були заблоковані
+Filename: "{sys}\taskkill.exe"; Parameters: "/IM {#MyAppExe} /F"; \
+  Flags: runhidden; RunOnceId: "KillApp"
+
+[UninstallDelete]
+; прибрати per-user конфіг і скопійовані застосунком дані (шпалери/гліфи)
+Type: filesandordirs; Name: "{userappdata}\AdaptiveWallpaper"
+Type: filesandordirs; Name: "{localappdata}\AdaptiveWallpaper"
+
+[Code]
+// Перед оновленням/встановленням закрити запущений екземпляр (інакше exe
+// заблокований і апгрейд впаде). CloseApplications не завжди ловить трей без вікна.
+function PrepareToInstall(var NeedsRestart: Boolean): String;
+var
+  ResultCode: Integer;
+begin
+  Exec(ExpandConstant('{sys}\taskkill.exe'), '/IM {#MyAppExe} /F', '',
+       SW_HIDE, ewWaitUntilTerminated, ResultCode);
+  Result := '';
+end;
