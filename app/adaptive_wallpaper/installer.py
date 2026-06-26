@@ -93,6 +93,7 @@ def _autostart_linux(enable: bool) -> bool:
         return True
     d.mkdir(parents=True, exist_ok=True)
     f.write_text(_desktop_entry(autostart=True), encoding="utf-8")
+    install_icon_linux()   # переконатись, що іконка в темі (Icon=adaptive-wallpaper)
     return True
 
 

@@ -1,19 +1,9 @@
 # Windows setup
 
-The adaptive wallpaper script works on Windows 10/11. It picks a PNG from the
-`wallpapers/` folder based on season, time of day and weather, then sets it as
-the desktop wallpaper via the Win32 API.
-
-## Requirements
-
-- **Python 3** (3.10+). Install from <https://www.python.org/downloads/> and
-  tick *"Add Python to PATH"* during setup.
-- **No extra dependencies** are needed just to *set* the wallpaper — the script
-  uses only the standard library plus the project's `scripts/scenes.py`.
-  - `google-genai` is **not** required for setting wallpaper; it's only needed
-    for *generating* images.
-  - `pip install pillow` is only needed if you also run image-generation/editing
-    tooling — skip it otherwise.
+On Windows 10/11 the recommended way is the **GUI app** — a system-tray program
+that picks a wallpaper from the `wallpapers/` folder by season, time of day and
+weather and sets it via the Win32 API. Install it from the `setup.exe` below;
+running the raw Python scripts is only for development.
 
 ## Option 1 — installer (recommended, no Python needed)
 

@@ -77,7 +77,21 @@ _UK = {
     "Update now": "Оновити зараз",
     "Settings…": "Налаштування…",
     "Copy wallpapers to system…": "Скопіювати шпалери в систему…",
+    "About": "Про програму",
     "Quit": "Вийти",
+    # --- вікно «Про програму» ---
+    "Version {v}": "Версія {v}",
+    "A living neon coffee-shop wallpaper that follows "
+    "the season, time of day and weather.":
+        "Жива шпалера «неонова кав'ярня», що йде за сезоном, часом доби й погодою.",
+    "Source &amp; releases": "Код і релізи",
+    "Report an issue": "Повідомити про проблему",
+    "Open an issue": "Відкрити issue",
+    "Artwork": "Оригінальний арт",
+    "the generated frames are derivative works of their original art.":
+        "згенеровані кадри — похідні від їхнього оригінального арту.",
+    "License": "Ліцензія",
+    "GitHub": "GitHub",
     # --- сповіщення/повідомлення ---
     "No wallpapers found — set the folder in Settings.":
         "Шпалер не знайдено — вкажіть теку в Налаштуваннях.",

@@ -27,6 +27,12 @@ jobs:
           sudo apt-get install -y patchelf libxcb-cursor0
           python -m pip install nuitka PyQt6
 
+      - name: Set version from tag
+        run: |
+          v="${GITHUB_REF_NAME#v}"
+          sed -i "s/^__version__ = .*/__version__ = \"$v\"/" \
+            app/adaptive_wallpaper/__init__.py
+
       # Nuitka компілює у справжній C/ELF — менше хибних спрацювань захисту,
       # ніж self-extracting. PyQt6-плагін підтягує потрібні Qt-бібліотеки.
       - name: Build (Nuitka, PyQt6)
@@ -41,6 +47,11 @@ jobs:
             --output-dir=../dist \
             --output-filename=adaptive-wallpaper \
             run.py
+
+      - name: Smoke-test the binary
+        run: |
+          chmod +x dist/adaptive-wallpaper
+          ./dist/adaptive-wallpaper --version
 
       - name: Package bundle (binary + wallpapers)
         run: |
@@ -87,6 +98,14 @@ jobs:
       - name: Install build deps
         run: python -m pip install nuitka PyQt6
 
+      - name: Set version from tag
+        shell: pwsh
+        run: |
+          $v = "${{ github.ref_name }}".TrimStart('v')
+          (Get-Content app/adaptive_wallpaper/__init__.py) `
+            -replace '^__version__ = .*', "__version__ = `"$v`"" `
+            | Set-Content app/adaptive_wallpaper/__init__.py
+
       # standalone (папка справжніх DLL), НЕ onefile: onefile розпаковується в
       # temp при кожному запуску, що тригерить евристики антивірусів. Папка +
       # підписаний-стилем інсталятор Inno Setup викликають значно менше підозр.
@@ -94,6 +113,7 @@ jobs:
         working-directory: app
         shell: pwsh
         run: |
+          $ver = "${{ github.ref_name }}".TrimStart('v')   # тег vX.Y.Z → X.Y.Z
           python -m nuitka `
             --standalone `
             --assume-yes-for-downloads `
@@ -103,8 +123,8 @@ jobs:
             --windows-console-mode=disable `
             "--company-name=dz-vadim" `
             "--product-name=Adaptive Coffee Wallpaper" `
-            "--file-version=1.3.1.0" `
-            "--product-version=1.3.1.0" `
+            "--file-version=$ver.0" `
+            "--product-version=$ver.0" `
             "--file-description=Sets the desktop wallpaper by season, time and weather" `
             --output-dir=../dist `
             --output-filename=adaptive-wallpaper.exe `
@@ -113,9 +133,10 @@ jobs:
       - name: Build installer (Inno Setup)
         shell: pwsh
         run: |
+          $ver = "${{ github.ref_name }}".TrimStart('v')
           choco install innosetup --no-progress -y
           & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" `
-            /DMyAppVersion=1.3.1 windows\installer.iss
+            /DMyAppVersion=$ver windows\installer.iss
 
       - name: Portable zip (standalone + wallpapers)
         shell: pwsh

@@ -62,6 +62,8 @@ def _glyph(name: str, color: str, draw) -> str:
     d = config_dir() / "glyphs"
     d.mkdir(parents=True, exist_ok=True)
     f = d / f"{name}-{color.lstrip('#')}.png"
+    if f.exists():                       # детерміновані за назвою — не перезаписуємо
+        return f.as_posix()
     pm = QPixmap(24, 24)
     pm.fill(Qt.GlobalColor.transparent)
     p = QPainter(pm)

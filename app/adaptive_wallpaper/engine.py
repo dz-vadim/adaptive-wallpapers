@@ -119,8 +119,18 @@ class Conditions:
         self.online = online
 
 
+# Кеш успішних онлайн-умов: щоб короткі інтервали оновлення не довбали
+# wttr.in (він агресивно rate-лімітить). Невдачі не кешуємо — повторюємо.
+_COND_TTL = 25 * 60
+_cond_cache: dict[str, tuple[float, Conditions]] = {}
+
+
 def fetch_conditions(location: str = "", timeout: float = 10.0) -> Conditions:
-    """Погода + астрономія через wttr.in. Без мережі — випадкова погода."""
+    """Погода + астрономія через wttr.in (кеш ~25 хв). Без мережі — випадкова."""
+    import time
+    hit = _cond_cache.get(location)
+    if hit and time.monotonic() - hit[0] < _COND_TTL:
+        return hit[1]
     url = f"https://wttr.in/{location}?format=j1"
     try:
         req = urllib.request.Request(url, headers={"User-Agent": "curl/8"})
@@ -128,10 +138,12 @@ def fetch_conditions(location: str = "", timeout: float = 10.0) -> Conditions:
             data = json.load(r)
         code = int(data["current_condition"][0]["weatherCode"])
         astro = data["weather"][0]["astronomy"][0]
-        return Conditions(map_weather_code(code),
+        cond = Conditions(map_weather_code(code),
                           parse_clock(astro["sunrise"]),
                           parse_clock(astro["sunset"]),
                           online=True)
+        _cond_cache[location] = (time.monotonic(), cond)
+        return cond
     except Exception:
         return Conditions(random_weather(), online=False)
 

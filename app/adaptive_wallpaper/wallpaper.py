@@ -36,8 +36,9 @@ def _set_windows(path: Path) -> bool:
 
 # ---------------- macOS ----------------
 def _set_macos(path: Path) -> bool:
+    p = str(path.resolve()).replace("\\", "\\\\").replace('"', '\\"')  # екранування
     script = (f'tell application "System Events" to set picture of every '
-              f'desktop to POSIX file "{path.resolve()}"')
+              f'desktop to POSIX file "{p}"')
     return _run(["osascript", "-e", script])
 
 

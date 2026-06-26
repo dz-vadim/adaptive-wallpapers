@@ -26,6 +26,7 @@ from . import config as cfg
 from . import wallpaper as wp
 from .i18n import detect, set_language, tr
 from .icon import ICON_NAME, make_icon
+from .log import log
 from .settings_dialog import SettingsDialog
 
 
@@ -38,8 +39,13 @@ def _apply_language(lang: str) -> None:
     set_language(lang)
 
 
+_NO_LOCK = object()   # сентинел: не чіпати екран блокування цього разу
+
+
 class _Signals(QObject):
-    done = pyqtSignal(object, str, dict)   # (path|None, scene_name, info)
+    picked = pyqtSignal(object, str, dict)                 # (path|None, name, info)
+    # (path, name, ok, lock_changed, lock_backup, suffix)
+    applied = pyqtSignal(object, str, bool, bool, object, str)
     failed = pyqtSignal(str)
 
 
@@ -58,8 +64,32 @@ class _PickTask(QRunnable):
                 time=self.conf.get("time", "auto"),
                 weather=self.conf.get("weather", "auto"),
                 location=self.conf.get("location", ""))
-            self.sig.done.emit(path, name, info)
+            self.sig.picked.emit(path, name, info)
         except Exception as e:  # ніколи не валимо потік
+            log.exception("pick failed")
+            self.sig.failed.emit(str(e))
+
+
+class _ApplyTask(QRunnable):
+    """Встановлення шпалери (+ екран блокування) у фоновому потоці, щоб не
+    блокувати GUI на subprocess (plasma-apply / gsettings / PowerShell)."""
+
+    def __init__(self, path: Path, name: str, target, conf: dict,
+                 suffix: str, sig: _Signals):
+        super().__init__()
+        self.path, self.name, self.target = path, name, target
+        self.conf, self.suffix, self.sig = conf, suffix, sig
+
+    def run(self):
+        try:
+            ok = wp.set_wallpaper(self.path)
+            changed = False
+            if ok and self.target is not _NO_LOCK:
+                changed = lockscreen.manage_lock(self.conf, self.target)
+            self.sig.applied.emit(self.path, self.name, ok, changed,
+                                  self.conf.get("lock_backup"), self.suffix)
+        except Exception as e:
+            log.exception("apply failed")
             self.sig.failed.emit(str(e))
 
 
@@ -70,7 +100,9 @@ class Controller(QObject):
         self.cfg = cfg.load()
         self.pool = QThreadPool.globalInstance()
         self.sig = _Signals()
-        self.sig.done.connect(self._on_picked)
+        self.sig.picked.connect(self._on_picked)
+        self.sig.applied.connect(self._on_applied)
+        self._last_lock = None       # ключ останнього застосованого lock (анти-churn)
         self.sig.failed.connect(
             lambda m: self._notify(tr("Update failed: {msg}").format(msg=m)))
         self._carousel_pos = 0
@@ -105,8 +137,14 @@ class Controller(QObject):
         self.autostartAct.triggered.connect(self._toggle_autostart)
         m.addAction(tr("Copy wallpapers to system…"), self._do_install)
         m.addSeparator()
+        m.addAction(tr("About"), self.open_about)
         m.addAction(tr("Quit"), self.app.quit)
         self.tray.setContextMenu(m)
+
+    def open_about(self):
+        from .about_dialog import AboutDialog
+        dlg = AboutDialog()
+        dlg.exec()
 
     def _on_activated(self, reason):
         if reason == QSystemTrayIcon.ActivationReason.Trigger:
@@ -141,7 +179,7 @@ class Controller(QObject):
         self._carousel_pos %= len(files)
         path = files[self._carousel_pos]
         self._carousel_pos += 1
-        self._set(path, path.stem)
+        self._start_apply(path, path.stem)
 
     def _on_picked(self, path, name, info):
         if path is None:
@@ -149,33 +187,39 @@ class Controller(QObject):
             return
         # суфікс лише коли погоду реально не вдалось отримати (online is False);
         # None = детермінований вибір без мережі (ручні значення)
-        online = "  (offline guess)" if info.get("online") is False else ""
-        self._set(Path(path), name, suffix=online)
+        suffix = "  (offline guess)" if info.get("online") is False else ""
+        self._start_apply(Path(path), name, suffix)
 
-    def _set(self, path: Path, name: str, suffix: str = ""):
-        ok = wp.set_wallpaper(path)
-        if ok:
-            self.tray.setToolTip(f"{__app_name__}\n{path.name}{suffix}")
-            self._apply_lock(path)
-        else:
-            self._notify(tr("Could not set the wallpaper on this desktop."))
-
-    def _apply_lock(self, desktop_path: Path):
-        """Екран блокування за обраним режимом (best-effort).
-
-        skip = «keep original» (відновити те, що було до програми);
-        mirror = поточна шпалера; library = закріплений кадр.
-        """
+    def _lock_target(self, desktop_path: Path):
+        """Ціль для екрана блокування: mirror=шпалера, library=кадр, skip=None."""
         mode = self.cfg.get("lock_mode", "skip")
         if mode == "mirror":
-            target = desktop_path
-        elif mode == "library":
+            return desktop_path
+        if mode == "library":
             folder = self._folder()
             name = self.cfg.get("lock_file", "")
-            target = (folder / name) if (folder and name) else None
+            return (folder / name) if (folder and name) else None
+        return None
+
+    def _start_apply(self, path: Path, name: str, suffix: str = ""):
+        """Запустити встановлення шпалери+lock у воркері (GUI не блокується)."""
+        target = self._lock_target(path)
+        # анти-churn: не переписувати екран блокування, якщо ціль не змінилась
+        key = str(target) if target else f"skip:{bool(self.cfg.get('lock_backup'))}"
+        if key == self._last_lock:
+            target = _NO_LOCK
         else:
-            target = None
-        if lockscreen.manage_lock(self.cfg, target):
+            self._last_lock = key
+        self.pool.start(_ApplyTask(path, name, target, dict(self.cfg),
+                                   suffix, self.sig))
+
+    def _on_applied(self, path, name, ok, lock_changed, lock_backup, suffix):
+        if not ok:
+            self._notify(tr("Could not set the wallpaper on this desktop."))
+            return
+        self.tray.setToolTip(f"{__app_name__}\n{Path(path).name}{suffix}")
+        if lock_changed:
+            self.cfg["lock_backup"] = lock_backup
             cfg.save(self.cfg)
 
     def _notify(self, msg: str):
@@ -222,6 +266,7 @@ class Controller(QObject):
         if autostart_changed:
             installer.set_autostart(bool(self.cfg.get("autostart")))
         self._carousel_pos = 0
+        self._last_lock = None       # нові налаштування → застосувати lock наново
         self._reschedule()
         self.apply()
         # ненав'язливе підтвердження (з тротлінгом, щоб не спамити)
