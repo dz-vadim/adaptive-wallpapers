@@ -35,7 +35,8 @@ def _desktop_entry(autostart: bool) -> str:
 
 def install_icon_linux() -> bool:
     """Покласти кастомну іконку в тему користувача (для Wayland/трея/.desktop).
-    Ставимо і PNG (256x256), і SVG (scalable) під однією назвою."""
+    Ставимо і PNG (256x256), і SVG (scalable) під однією назвою, та оновлюємо
+    кеш іконок — інакше панель/пуск показують стару закешовану іконку."""
     base = Path.home() / ".local" / "share" / "icons" / "hicolor"
     ok = False
     for src, sub, ext in ((png_path(), "256x256", "png"),
@@ -45,7 +46,20 @@ def install_icon_linux() -> bool:
             dest.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(src, dest)
             ok = True
+    _refresh_icon_cache(base)
     return ok
+
+
+def _refresh_icon_cache(hicolor: Path) -> None:
+    """Best-effort оновлення кешу іконок (різні DE — різні утиліти)."""
+    import subprocess
+    for cmd in (["gtk-update-icon-cache", "-f", "-t", str(hicolor)],
+                ["kbuildsycoca6"], ["kbuildsycoca5"],
+                ["xdg-desktop-menu", "forceupdate"]):
+        try:
+            subprocess.run(cmd, check=False, capture_output=True, timeout=20)
+        except (FileNotFoundError, OSError, subprocess.SubprocessError):
+            pass
 
 
 def install_launcher_linux() -> bool:
