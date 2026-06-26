@@ -57,17 +57,23 @@ def hour_to_time(hour: int) -> str:
 def sun_to_time(now_min: int, sunrise_min: int, sunset_min: int) -> str:
     """Час доби за реальним сонцем (хвилини від півночі).
 
-    morning — година навколо сходу; evening — година навколо заходу;
-    day — між ними; night — решта.
+    Пропорційно до тривалості дня (дзеркало QML logic.js → timeIdxSun):
+    morning — перші ~35% світлового дня; day — до ~1.5 год перед заходом;
+    evening — золота година навколо заходу; night — решта. Якщо дані про
+    сонце невалідні — фолбек на hour_to_time.
     """
-    if sunrise_min < 0 or sunset_min < 0:
+    if sunrise_min < 0 or sunset_min < 0 or sunset_min <= sunrise_min:
         return hour_to_time(now_min // 60)
-    if sunrise_min - 60 <= now_min < sunrise_min + 60:
+    span = sunset_min - sunrise_min
+    morning_end = sunrise_min + span * 0.35
+    day_end = sunset_min - 90
+    evening_end = sunset_min + 45
+    if sunrise_min <= now_min < morning_end:
         return "morning"
-    if sunset_min - 60 <= now_min < sunset_min + 60:
-        return "evening"
-    if sunrise_min + 60 <= now_min < sunset_min - 60:
+    if morning_end <= now_min < day_end:
         return "day"
+    if day_end <= now_min < evening_end:
+        return "evening"
     return "night"
 
 
