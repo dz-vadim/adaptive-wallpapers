@@ -52,22 +52,23 @@ def install_icon_linux() -> bool:
 
 def _refresh_icon_cache(hicolor: Path) -> None:
     """Best-effort оновлення кешу іконок (різні DE — різні утиліти).
-    Plasma тримає окремий icon-cache.kcache — без його скидання панель/пуск
-    показують стару закешовану іконку."""
+
+    ВАЖЛИВО: не чіпаємо hicolor/index.theme — у теці користувача його зазвичай
+    немає (список тек дає системна тема), а порожній/власний index.theme ламає
+    резолвинг усієї теми (зникають чужі іконки). gtk-update-icon-cache запускаємо
+    ЛИШЕ якщо валідний index.theme уже є (інакше він теж його потребує/створює).
+    """
     import subprocess
-    # оновити mtime теми, щоб кеші помітили зміну
-    try:
-        (hicolor / "index.theme").touch(exist_ok=True)
-    except OSError:
-        pass
-    # прибрати кеш іконок Plasma
-    cache = Path.home() / ".cache"
-    for name in ("icon-cache.kcache",):
-        (cache / name).unlink(missing_ok=True)
-    for cmd in (["gtk-update-icon-cache", "-f", "-t", str(hicolor)],
-                ["kbuildsycoca6", "--noincremental"],
-                ["kbuildsycoca5", "--noincremental"],
-                ["xdg-desktop-menu", "forceupdate"]):
+    # Plasma тримає окремий icon-cache.kcache — без скидання панель/пуск
+    # показують стару закешовану іконку.
+    (Path.home() / ".cache" / "icon-cache.kcache").unlink(missing_ok=True)
+    cmds = [["kbuildsycoca6", "--noincremental"],
+            ["kbuildsycoca5", "--noincremental"],
+            ["xdg-desktop-menu", "forceupdate"]]
+    idx = hicolor / "index.theme"
+    if idx.is_file() and idx.stat().st_size > 0:
+        cmds.insert(0, ["gtk-update-icon-cache", "-f", "-t", str(hicolor)])
+    for cmd in cmds:
         try:
             subprocess.run(cmd, check=False, capture_output=True, timeout=30)
         except (FileNotFoundError, OSError, subprocess.SubprocessError):
