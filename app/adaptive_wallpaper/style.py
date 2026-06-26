@@ -10,11 +10,12 @@ from PyQt6.QtGui import QColor, QPalette
 ACCENT_DARK = "#e3b94f"
 ACCENT_LIGHT = "#bd8a1f"
 
-# Темна палітра (нічна сцена референсу: синьо-зелена родина #112233)
+# Темна палітра — нічні сині тони оригіналу (#112233 / #1a324a / #2d4d64),
+# тепле золото неону COFFEE як акцент.
 _DARK = {
-    "accent": ACCENT_DARK, "accent_hi": "#f0cf72", "on_accent": "#14202b",
-    "bg": "#101d27", "panel": "#192934", "border": "#2f4452",
-    "text": "#e9e2cf", "muted": "#90a2b0", "preview": "#0c161e",
+    "accent": ACCENT_DARK, "accent_hi": "#f0cf72", "on_accent": "#101a2b",
+    "bg": "#0f1c30", "panel": "#182a44", "border": "#2d4866",
+    "text": "#e8e3d4", "muted": "#8ea2bd", "preview": "#0a1626",
 }
 # Світла палітра (той самий синьо-зелений як текст, нейтральне тло)
 _LIGHT = {

@@ -54,7 +54,7 @@ class SettingsDialog(QDialog):
         self._tr_combos: list[tuple[QComboBox, list]] = []
 
         self.setWindowIcon(make_icon())
-        self.setMinimumWidth(470)
+        self.setMinimumWidth(720)
 
         # авто-застосування з дебаунсом (реактивність)
         self._applyTimer = QTimer(self)
@@ -66,10 +66,23 @@ class SettingsDialog(QDialog):
         root.setContentsMargins(16, 16, 16, 14)
         root.setSpacing(12)
         root.addWidget(self._header())
-        root.addWidget(self._general_card())
-        root.addWidget(self._adaptive_card())
-        root.addWidget(self._lock_card())
-        root.addWidget(self._preview_card())
+
+        # дві колонки замість одного довгого стовпця
+        cols = QHBoxLayout()
+        cols.setSpacing(12)
+        left = QVBoxLayout()
+        left.setSpacing(12)
+        left.addWidget(self._general_card())
+        left.addWidget(self._adaptive_card())
+        left.addStretch(1)
+        right = QVBoxLayout()
+        right.setSpacing(12)
+        right.addWidget(self._preview_card())
+        right.addWidget(self._lock_card())
+        right.addStretch(1)
+        cols.addLayout(left, 1)
+        cols.addLayout(right, 1)
+        root.addLayout(cols)
         root.addLayout(self._footer())
 
         self._building = False
