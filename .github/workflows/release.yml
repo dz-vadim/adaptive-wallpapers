@@ -24,7 +24,7 @@ jobs:
       - name: Install build deps
         run: |
           sudo apt-get update
-          sudo apt-get install -y patchelf libxcb-cursor0
+          sudo apt-get install -y patchelf libxcb-cursor0 libegl1 libgl1
           python -m pip install nuitka PyQt6
 
       - name: Set version from tag
