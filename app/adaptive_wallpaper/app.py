@@ -159,8 +159,10 @@ class Controller(QObject):
         self._last_apply_note = 0.0
         self._dlg = None
         self._update = None          # інфо про доступне оновлення
+        self._manual_check = False   # ручна перевірка → показати «найновіша»
         self._progress = None
         self._dl_dest = None
+        self._current_path = None    # поточно встановлена шпалера
         _apply_language(self.cfg.get("language", "auto"))
 
         self.icon = make_icon()
@@ -193,6 +195,8 @@ class Controller(QObject):
             act.triggered.connect(self._do_update)
             m.addSeparator()
         m.addAction(tr("Update now"), self.apply)
+        m.addAction(tr("Show current wallpaper"), self._open_current)
+        m.addAction(tr("Open wallpapers folder"), self._open_folder)
         m.addAction(tr("Settings…"), self.open_settings)
         m.addSeparator()
         self.autostartAct = m.addAction(tr("Run at login"))
@@ -201,9 +205,25 @@ class Controller(QObject):
         self.autostartAct.triggered.connect(self._toggle_autostart)
         m.addAction(tr("Copy wallpapers to system…"), self._do_install)
         m.addSeparator()
+        if not self._update:
+            m.addAction(tr("Check for updates now"),
+                        lambda: self._check_updates(True))
         m.addAction(tr("About"), self.open_about)
         m.addAction(tr("Quit"), self.app.quit)
         self.tray.setContextMenu(m)
+
+    def _open_current(self):
+        if self._current_path and Path(self._current_path).exists():
+            QDesktopServices.openUrl(QUrl.fromLocalFile(str(self._current_path)))
+        else:
+            self._notify(tr("No wallpaper is set yet."))
+
+    def _open_folder(self):
+        folder = self._folder()
+        if folder:
+            QDesktopServices.openUrl(QUrl.fromLocalFile(str(folder)))
+        else:
+            self._notify(tr("No wallpapers found — set the folder in Settings."))
 
     def open_about(self):
         from .about_dialog import AboutDialog
@@ -211,14 +231,19 @@ class Controller(QObject):
         dlg.exec()
 
     # ---- оновлення ----
-    def _check_updates(self):
-        if self.cfg.get("check_updates", True):
+    def _check_updates(self, manual=False):
+        if manual or self.cfg.get("check_updates", True):
+            self._manual_check = manual
             self.pool.start(_CheckTask(self.sig))
 
     def _on_update_found(self, info):
         self._update = info
         if not info:
+            if self._manual_check:
+                self._manual_check = False
+                self._notify(tr("You have the latest version."))
             return
+        self._manual_check = False
         self._build_menu()           # додати пункт «⬆ Оновити…»
         if info["version"] != self.cfg.get("last_notified_version", ""):
             self.cfg["last_notified_version"] = info["version"]
@@ -359,6 +384,7 @@ class Controller(QObject):
         if not ok:
             self._notify(tr("Could not set the wallpaper on this desktop."))
             return
+        self._current_path = Path(path)
         self.tray.setToolTip(f"{__app_name__}\n{Path(path).name}{suffix}")
         if lock_changed:
             self.cfg["lock_backup"] = lock_backup

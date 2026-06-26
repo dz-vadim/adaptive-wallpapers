@@ -4,6 +4,12 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/), and the project follows
 [Semantic Versioning](https://semver.org/).
 
+## [1.3.4]
+
+### Added
+- Tray menu: **Show current wallpaper**, **Open wallpapers folder**, and a manual
+  **Check for updates now** (with a "you have the latest version" reply).
+
 ## [1.3.3]
 
 ### Added

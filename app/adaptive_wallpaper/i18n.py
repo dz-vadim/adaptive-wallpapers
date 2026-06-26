@@ -81,6 +81,10 @@ _UK = {
     "Now showing": "Зараз показано",
     # --- трей-меню ---
     "Update now": "Оновити зараз",
+    "Show current wallpaper": "Показати поточну шпалеру",
+    "Open wallpapers folder": "Відкрити теку зі шпалерами",
+    "No wallpaper is set yet.": "Шпалеру ще не встановлено.",
+    "Check for updates now": "Перевірити оновлення",
     "Settings…": "Налаштування…",
     "Copy wallpapers to system…": "Скопіювати шпалери в систему…",
     "About": "Про програму",
