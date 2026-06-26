@@ -1,29 +1,38 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <svg width="64" height="64" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
-  <!-- Неонова вивіска-стакан кави (як на референсі COFFEE): золотий лінійний
-       контур на темному синьо-зеленому тлі з палітри оригіналу. -->
-  <rect x="2" y="2" width="60" height="60" rx="15" fill="#122430"/>
-  <rect x="2" y="2" width="60" height="60" rx="15" fill="none"
-        stroke="#1f3a48" stroke-width="1"/>
+  <!-- Неонова вивіска-стакан (як reference/icon.png та вивіска COFFEE):
+       чистий лінійний контур, об'єм — через форму (перспективні еліпси),
+       відблиск — окрема лінія. Без заливок і градієнтів. -->
+  <rect x="3" y="3" width="58" height="58" rx="12" fill="#122430"/>
 
-  <!-- м'яке неонове сяйво (ширший напівпрозорий контур) -->
-  <g fill="none" stroke="#f2e7a0" stroke-opacity="0.28" stroke-width="5.5"
+  <!-- м'яке неонове сяйво: ті самі лінії, ширші й напівпрозорі -->
+  <g fill="none" stroke="#f4e89c" stroke-opacity="0.22" stroke-width="5"
      stroke-linecap="round" stroke-linejoin="round">
-    <path d="M25 16 C25 11 39 11 39 16"/>
-    <path d="M22.5 16 H41.5 L40.5 22 H23.5 Z"/>
-    <path d="M23 22 L26 51 Q32 54 38 51 L41 22"/>
+    <path d="M19.5 17 C20 10.5 44 10.5 44.5 17"/>
+    <ellipse cx="32" cy="17" rx="12.5" ry="2.9"/>
+    <ellipse cx="32" cy="22.4" rx="13.8" ry="3.1"/>
+    <path d="M22 24.5 L25.6 50.5"/>
+    <path d="M42 24.5 L38.4 50.5"/>
+    <path d="M25.6 50.5 Q32 53.4 38.4 50.5"/>
   </g>
 
   <!-- основний золотий неон -->
-  <g fill="none" stroke="#ecdf9a" stroke-width="2.4"
+  <g fill="none" stroke="#ecdf92" stroke-width="2.2"
      stroke-linecap="round" stroke-linejoin="round">
     <!-- купол кришки -->
-    <path d="M25 16 C25 11 39 11 39 16"/>
-    <!-- обідок кришки -->
-    <path d="M22.5 16 H41.5 L40.5 22 H23.5 Z"/>
-    <!-- лінія на кришці -->
-    <path d="M26 18.6 H38"/>
-    <!-- корпус стакана (звужується донизу) -->
-    <path d="M23 22 L26 51 Q32 54 38 51 L41 22"/>
+    <path d="M19.5 17 C20 10.5 44 10.5 44.5 17"/>
+    <!-- обідок кришки (еліпс — дає об'єм) -->
+    <ellipse cx="32" cy="17" rx="12.5" ry="2.9"/>
+    <!-- ширша «губа» кришки, що нависає -->
+    <ellipse cx="32" cy="22.4" rx="13.8" ry="3.1"/>
+    <!-- корпус, що звужується донизу -->
+    <path d="M22 24.5 L25.6 50.5"/>
+    <path d="M42 24.5 L38.4 50.5"/>
+    <!-- еліптичне дно -->
+    <path d="M25.6 50.5 Q32 53.4 38.4 50.5"/>
   </g>
+
+  <!-- відблиск — окрема коротка лінія на корпусі -->
+  <path d="M27.5 29 Q26.4 35 27.4 41" fill="none" stroke="#fbf3c0"
+        stroke-width="1.7" stroke-linecap="round" stroke-opacity="0.92"/>
 </svg>
