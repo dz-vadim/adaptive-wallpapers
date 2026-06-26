@@ -15,6 +15,8 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 ![Platforms](https://img.shields.io/badge/platforms-Windows%20%7C%20Linux%20%7C%20macOS-555)
 
+**Українська** · [English](README.en.md)
+
 <img src="docs/images/hero.jpg" width="760" alt="Чотири сезони кав'ярні"/>
 
 </div>

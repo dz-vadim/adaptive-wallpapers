@@ -4,7 +4,9 @@
 from __future__ import annotations
 
 from PyQt6.QtCore import Qt
-from PyQt6.QtGui import QColor, QPalette
+from PyQt6.QtGui import QColor, QPainter, QPalette, QPen, QPixmap
+
+from .paths import config_dir
 
 # Акцент — золото неонової вивіски COFFEE (трохи глибше для світлої теми).
 ACCENT_DARK = "#e3b94f"
@@ -25,7 +27,19 @@ _LIGHT = {
 }
 
 
+_pref = "auto"   # auto | dark | light — override системної теми
+
+
+def set_pref(pref: str) -> None:
+    global _pref
+    _pref = pref if pref in ("auto", "dark", "light") else "auto"
+
+
 def is_dark(app) -> bool:
+    if _pref == "dark":
+        return True
+    if _pref == "light":
+        return False
     try:
         return app.styleHints().colorScheme() == Qt.ColorScheme.Dark
     except Exception:
@@ -36,7 +50,52 @@ def _vars(app) -> dict:
     return _DARK if is_dark(app) else _LIGHT
 
 
-def _qss(v: dict) -> str:
+# --- гліфи (стрілки списків + галочка), мальовані під колір теми ---
+def _pen(color: str, w: float) -> QPen:
+    p = QPen(QColor(color), w)
+    p.setCapStyle(Qt.PenCapStyle.RoundCap)
+    p.setJoinStyle(Qt.PenJoinStyle.RoundJoin)
+    return p
+
+
+def _glyph(name: str, color: str, draw) -> str:
+    d = config_dir() / "glyphs"
+    d.mkdir(parents=True, exist_ok=True)
+    f = d / f"{name}-{color.lstrip('#')}.png"
+    pm = QPixmap(24, 24)
+    pm.fill(Qt.GlobalColor.transparent)
+    p = QPainter(pm)
+    p.setRenderHint(QPainter.RenderHint.Antialiasing)
+    draw(p)
+    p.end()
+    pm.save(str(f))
+    return f.as_posix()   # прямі слеші — валідно в QSS і на Windows
+
+
+def _glyphs(v: dict) -> dict:
+    def down(p):
+        p.setPen(_pen(v["muted"], 2.4))
+        p.drawLine(7, 10, 12, 15)
+        p.drawLine(12, 15, 17, 10)
+
+    def up(p):
+        p.setPen(_pen(v["muted"], 2.4))
+        p.drawLine(7, 14, 12, 9)
+        p.drawLine(12, 9, 17, 14)
+
+    def check(p):
+        p.setPen(_pen(v["on_accent"], 2.6))
+        p.drawLine(6, 13, 10, 17)
+        p.drawLine(10, 17, 18, 7)
+
+    return {
+        "down": _glyph("down", v["muted"], down),
+        "up": _glyph("up", v["muted"], up),
+        "check": _glyph("check", v["on_accent"], check),
+    }
+
+
+def _qss(v: dict, g: dict) -> str:
     return f"""
 QWidget {{ color: {v['text']}; font-size: 13px; }}
 QDialog, QMenu {{ background: {v['bg']}; }}
@@ -55,6 +114,7 @@ QComboBox, QSpinBox, QLineEdit {{
     border-radius: 8px;
     padding: 5px 8px;
     min-height: 20px;
+    min-width: 168px;
     selection-background-color: {v['accent']};
     selection-color: {v['on_accent']};
 }}
@@ -64,7 +124,7 @@ QComboBox::drop-down {{
     subcontrol-origin: padding; subcontrol-position: center right;
     border: none; width: 22px;
 }}
-QComboBox::down-arrow {{ width: 10px; height: 10px; }}
+QComboBox::down-arrow {{ image: url({g['down']}); width: 12px; height: 12px; }}
 QComboBox QAbstractItemView {{
     background: {v['panel']};
     border: 1px solid {v['border']};
@@ -89,7 +149,8 @@ QSpinBox::down-button {{ subcontrol-position: bottom right; border-bottom-right-
 QSpinBox::up-button:hover, QSpinBox::down-button:hover {{
     background: {v['accent']};
 }}
-QSpinBox::up-arrow, QSpinBox::down-arrow {{ width: 9px; height: 9px; }}
+QSpinBox::up-arrow {{ image: url({g['up']}); width: 11px; height: 11px; }}
+QSpinBox::down-arrow {{ image: url({g['down']}); width: 11px; height: 11px; }}
 
 QPushButton {{
     background: {v['panel']};
@@ -111,7 +172,10 @@ QCheckBox::indicator {{
     background: {v['bg']};
 }}
 QCheckBox::indicator:hover {{ border-color: {v['accent']}; }}
-QCheckBox::indicator:checked {{ background: {v['accent']}; border-color: {v['accent']}; }}
+QCheckBox::indicator:checked {{
+    background: {v['accent']}; border-color: {v['accent']};
+    image: url({g['check']});
+}}
 QMenu::item {{ padding: 6px 22px; }}
 QMenu::item:selected {{ background: {v['accent']}; color: {v['on_accent']}; }}
 QMenu::item:disabled {{ color: {v['muted']}; }}
@@ -129,6 +193,7 @@ QToolTip {{
 
 def apply_theme(app) -> None:
     v = _vars(app)
+    g = _glyphs(v)
     app.setStyle("Fusion")
     pal = QPalette()
     pal.setColor(QPalette.ColorRole.Window, QColor(v["bg"]))
@@ -144,7 +209,7 @@ def apply_theme(app) -> None:
     pal.setColor(QPalette.ColorRole.ToolTipText, QColor(v["text"]))
     pal.setColor(QPalette.ColorRole.PlaceholderText, QColor(v["muted"]))
     app.setPalette(pal)
-    app.setStyleSheet(_qss(v))
+    app.setStyleSheet(_qss(v, g))
 
     # реактивність: перемалювати при зміні системної теми (один раз під'єднати)
     if not getattr(app, "_acw_theme_hook", False):

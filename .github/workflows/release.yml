@@ -2,7 +2,7 @@ name: Release app binaries
 
 # Збирає GUI-застосунок (трей) під Linux і Windows через Nuitka й публікує
 # бінарники + бандл зі шпалерами в GitHub Release.
-# Тригер — пуш тегу версії:  git tag v1.1.0 && git push origin v1.1.0
+# Тригер — пуш тегу версії:  git tag vX.Y.Z && git push origin vX.Y.Z
 on:
   push:
     tags:

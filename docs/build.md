@@ -24,23 +24,37 @@ self-extracting bundlers. No UPX (it's an AV trigger too).
 cd app
 python -m pip install nuitka PyQt6
 
-# Linux
+# Linux — onefile binary
 python -m nuitka --onefile --assume-yes-for-downloads \
-  --enable-plugin=pyqt6 \
+  --enable-plugin=pyqt6 --include-package-data=adaptive_wallpaper \
+  --linux-icon=adaptive_wallpaper/assets/adaptive-wallpaper.png \
   --output-dir=../dist --output-filename=adaptive-wallpaper run.py
-
-# Windows (PowerShell) — note --windows-console-mode=disable for a GUI app
-python -m nuitka --onefile --assume-yes-for-downloads `
-  --enable-plugin=pyqt6 --windows-console-mode=disable `
-  --output-dir=../dist --output-filename=adaptive-wallpaper.exe run.py
 ```
 
 On Linux you need `patchelf` (Nuitka can download it with
 `--assume-yes-for-downloads`) and the runtime needs `libxcb-cursor0`.
 
-The binary doesn't embed the 48 PNGs — ship a `wallpapers/` folder next to it,
-or let the user pick a folder. The release bundles do both: binary + wallpapers
-in one archive.
+### Windows — standalone + installer
+
+On Windows the release uses a Nuitka **standalone** folder (not onefile — a
+self-extracting onefile triggers more antivirus false positives) wrapped in an
+**Inno Setup** installer:
+
+```powershell
+cd app
+python -m nuitka --standalone --assume-yes-for-downloads `
+  --enable-plugin=pyqt6 --include-package-data=adaptive_wallpaper `
+  --windows-icon-from-ico=adaptive_wallpaper/assets/adaptive-wallpaper.ico `
+  --windows-console-mode=disable `
+  --output-dir=../dist --output-filename=adaptive-wallpaper.exe run.py
+
+# then compile the installer (Inno Setup 6)
+iscc /DMyAppVersion=1.3.1 ..\windows\installer.iss   # → dist\adaptive-wallpaper-setup.exe
+```
+
+`--include-package-data` bundles the icon assets; the binary doesn't embed the
+48 PNGs — the installer copies a `wallpapers/` folder next to the exe (the app
+auto-detects it).
 
 ## Build with PyInstaller (alternative)
 

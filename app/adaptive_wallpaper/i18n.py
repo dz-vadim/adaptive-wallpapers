@@ -20,6 +20,7 @@ _UK = {
     "Adaptive (season · time · weather)": "Адаптивний (сезон · час · погода)",
     "Carousel (cycle all images)": "Карусель (циклічно всі кадри)",
     "Wallpapers folder:": "Тека зі шпалерами:",
+    "Folder:": "Тека:",
     "Browse…": "Огляд…",
     "auto-detect (none found yet)": "автовизначення (поки не знайдено)",
     "Choose wallpapers folder": "Оберіть теку зі шпалерами",
@@ -52,6 +53,10 @@ _UK = {
     "Run at login": "Запуск при вході",
     "Language:": "Мова:",
     "Automatic": "Автоматично",
+    "Theme:": "Тема:",
+    "Auto (system)": "Авто (за системою)",
+    "Dark": "Темна",
+    "Light": "Світла",
     "Language change applies after reopening this window.":
         "Зміна мови застосується після повторного відкриття вікна.",
     "no wallpapers found": "шпалер не знайдено",

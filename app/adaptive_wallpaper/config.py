@@ -20,6 +20,7 @@ DEFAULTS = {
     "lock_file": "",             # для lock_mode=library: ім'я кадру з бібліотеки
     "lock_backup": None,         # знімок оригіналу до керування (для відновлення)
     "language": "auto",          # мова інтерфейсу: auto | en | uk
+    "theme": "auto",             # тема: auto (за системою) | dark | light
 }
 
 

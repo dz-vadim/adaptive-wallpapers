@@ -51,13 +51,25 @@ def install_icon_linux() -> bool:
 
 
 def _refresh_icon_cache(hicolor: Path) -> None:
-    """Best-effort оновлення кешу іконок (різні DE — різні утиліти)."""
+    """Best-effort оновлення кешу іконок (різні DE — різні утиліти).
+    Plasma тримає окремий icon-cache.kcache — без його скидання панель/пуск
+    показують стару закешовану іконку."""
     import subprocess
+    # оновити mtime теми, щоб кеші помітили зміну
+    try:
+        (hicolor / "index.theme").touch(exist_ok=True)
+    except OSError:
+        pass
+    # прибрати кеш іконок Plasma
+    cache = Path.home() / ".cache"
+    for name in ("icon-cache.kcache",):
+        (cache / name).unlink(missing_ok=True)
     for cmd in (["gtk-update-icon-cache", "-f", "-t", str(hicolor)],
-                ["kbuildsycoca6"], ["kbuildsycoca5"],
+                ["kbuildsycoca6", "--noincremental"],
+                ["kbuildsycoca5", "--noincremental"],
                 ["xdg-desktop-menu", "forceupdate"]):
         try:
-            subprocess.run(cmd, check=False, capture_output=True, timeout=20)
+            subprocess.run(cmd, check=False, capture_output=True, timeout=30)
         except (FileNotFoundError, OSError, subprocess.SubprocessError):
             pass
 

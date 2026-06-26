@@ -10,14 +10,15 @@ option on Plasma — this app is the portable alternative / Windows build.
 
 ## Get it
 
-- **Prebuilt binary** — download from the
+- **Prebuilt** — download from the
   [Releases](https://github.com/dz-vadim/adaptive-wallpapers/releases) page:
-  - `adaptive-wallpaper-windows.zip` or `adaptive-wallpaper-linux.tar.gz`
-    contain the app **plus all 48 wallpapers**. Unpack anywhere and run the
-    binary.
-  - The bare `adaptive-wallpaper(.exe)` is the app only — point it at a
-    wallpapers folder (Settings → Browse, or `--folder`), or drop a
-    `wallpapers/` folder next to it.
+  - **Windows:** `adaptive-wallpaper-setup.exe` — a normal installer (Inno
+    Setup, per-user, no admin) that sets up the app, shortcuts, optional
+    autostart and unpacks all 48 wallpapers. Or `adaptive-wallpaper-windows-portable.zip`
+    (folder with the exe + wallpapers, no install).
+  - **Linux:** `adaptive-wallpaper-linux.tar.gz` (binary + wallpapers) or the
+    bare `adaptive-wallpaper` binary (point it at a folder via Settings → Browse
+    / `--folder`, or run `--install`).
 - **Build it yourself** — see [build.md](build.md).
 - **Run from source** — `pip install PyQt6 && python -m adaptive_wallpaper`
   from the `app/` directory.

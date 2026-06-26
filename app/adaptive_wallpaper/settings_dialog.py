@@ -7,6 +7,7 @@ from pathlib import Path
 from PyQt6.QtCore import Qt, QTimer
 from PyQt6.QtGui import QPixmap
 from PyQt6.QtWidgets import (
+    QApplication,
     QCheckBox,
     QComboBox,
     QDialog,
@@ -22,7 +23,7 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-from . import engine, paths
+from . import engine, paths, style
 from .i18n import set_language, tr
 from .icon import make_icon
 
@@ -38,6 +39,7 @@ _LOCK = [("Keep original (restore pre-app)", "skip"),
          ("Mirror desktop wallpaper", "mirror"),
          ("Pick from library", "library")]
 _LANG = [("Automatic", "auto"), ("English", "en"), ("Українська", "uk")]
+_THEME = [("Auto (system)", "auto"), ("Dark", "dark"), ("Light", "light")]
 
 
 class SettingsDialog(QDialog):
@@ -54,7 +56,7 @@ class SettingsDialog(QDialog):
         self._tr_combos: list[tuple[QComboBox, list]] = []
 
         self.setWindowIcon(make_icon())
-        self.setMinimumWidth(720)
+        self.setMinimumWidth(780)
 
         # авто-застосування з дебаунсом (реактивність)
         self._applyTimer = QTimer(self)
@@ -163,7 +165,11 @@ class SettingsDialog(QDialog):
         folderRow.addWidget(self.browseBtn)
         fw = QWidget()
         fw.setLayout(folderRow)
-        self._row(form, "Wallpapers folder:", fw)
+        self._row(form, "Folder:", fw)
+
+        self.themeBox = self._combo(_THEME, self._cfg.get("theme", "auto"),
+                                    self._on_theme_change)
+        self._row(form, "Theme:", self.themeBox)
 
         self.langBox = self._combo(_LANG, self._cfg.get("language", "auto"),
                                    self._on_lang_change)
@@ -272,6 +278,14 @@ class SettingsDialog(QDialog):
         if self._on_language:
             self._on_language(self.langBox.currentData())
 
+    def _on_theme_change(self):
+        # реактивно: одразу перемалювати тему всього застосунку
+        style.set_pref(self.themeBox.currentData())
+        app = QApplication.instance()
+        if app is not None:
+            style.apply_theme(app)
+        self._refresh_preview()
+
     @staticmethod
     def _effective_lang(lang: str) -> str:
         from .i18n import detect
@@ -315,6 +329,7 @@ class SettingsDialog(QDialog):
             "lock_mode": self.lockBox.currentData(),
             "lock_file": self.lockFileBox.currentData() or "",
             "language": self.langBox.currentData(),
+            "theme": self.themeBox.currentData(),
         }
 
     def _refresh_preview(self):

@@ -209,11 +209,15 @@ class Controller(QObject):
             return
         autostart_changed = new.get("autostart") != self.cfg.get("autostart")
         lang_changed = new.get("language") != self.cfg.get("language")
+        theme_changed = new.get("theme") != self.cfg.get("theme")
         self.cfg.update(new)
         cfg.save(self.cfg)
         if lang_changed:
             _apply_language(self.cfg.get("language", "auto"))
             self._build_menu()        # перебудувати меню новою мовою
+        if theme_changed:
+            style.set_pref(self.cfg.get("theme", "auto"))
+            style.apply_theme(self.app)
         self.autostartAct.setChecked(bool(self.cfg.get("autostart")))
         if autostart_changed:
             installer.set_autostart(bool(self.cfg.get("autostart")))
@@ -258,7 +262,8 @@ def run_gui() -> int:
     app.setDesktopFileName(ICON_NAME)
     app.setWindowIcon(make_icon())         # іконка у заголовку вікон / панелі
     app.setQuitOnLastWindowClosed(False)   # закриття вікна не завершує застосунок
-    style.apply_theme(app)                 # темна «кавова» тема
+    style.set_pref(cfg.load().get("theme", "auto"))
+    style.apply_theme(app)                 # тема за вибором/системою
 
     # один екземпляр: другий запуск показує налаштування першому й виходить
     if single_instance.already_running():
