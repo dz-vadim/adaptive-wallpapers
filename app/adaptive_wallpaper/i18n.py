@@ -56,6 +56,16 @@ _UK = {
     "Auto (system)": "Авто (за системою)",
     "Dark": "Темна",
     "Light": "Світла",
+    "Check for updates": "Перевіряти оновлення",
+    # --- оновлення ---
+    "New version {v} is available": "Доступна нова версія {v}",
+    "Update to {v}…": "Оновити до {v}…",
+    "Update available": "Доступне оновлення",
+    "Download and install version {v} now?":
+        "Завантажити й встановити версію {v} зараз?",
+    "Downloading update…": "Завантаження оновлення…",
+    "Cancel": "Скасувати",
+    "You have the latest version.": "У вас найновіша версія.",
     "no wallpapers found": "шпалер не знайдено",
     "no matching file": "немає відповідного файлу",
     "Apply": "Застосувати",

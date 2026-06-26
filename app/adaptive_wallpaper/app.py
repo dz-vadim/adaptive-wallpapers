@@ -1,14 +1,27 @@
 """Трей-застосунок: фонова зміна шпалери + меню + налаштування (PyQt6)."""
 from __future__ import annotations
 
+import os
+import sys
+import tempfile
 import time
 from pathlib import Path
 
-from PyQt6.QtCore import QLocale, QObject, QRunnable, QThreadPool, QTimer, pyqtSignal
+from PyQt6.QtCore import (
+    QLocale,
+    QObject,
+    QRunnable,
+    QThreadPool,
+    QTimer,
+    QUrl,
+    pyqtSignal,
+)
+from PyQt6.QtGui import QDesktopServices
 from PyQt6.QtWidgets import (
     QApplication,
     QMenu,
     QMessageBox,
+    QProgressDialog,
     QSystemTrayIcon,
 )
 
@@ -21,6 +34,7 @@ from . import (
     paths,
     single_instance,
     style,
+    updater,
 )
 from . import config as cfg
 from . import wallpaper as wp
@@ -47,6 +61,38 @@ class _Signals(QObject):
     # (path, name, ok, lock_changed, lock_backup, suffix)
     applied = pyqtSignal(object, str, bool, bool, object, str)
     failed = pyqtSignal(str)
+    update_found = pyqtSignal(object)                      # info dict | None
+    dl_progress = pyqtSignal(int, int)                     # (done, total)
+    dl_done = pyqtSignal(object)                           # Path
+    dl_failed = pyqtSignal(str)
+
+
+class _CheckTask(QRunnable):
+    """Перевірка нової версії у фоновому потоці."""
+
+    def __init__(self, sig: _Signals):
+        super().__init__()
+        self.sig = sig
+
+    def run(self):
+        self.sig.update_found.emit(updater.check_latest())
+
+
+class _DownloadTask(QRunnable):
+    """Завантаження артефакта оновлення з прогресом."""
+
+    def __init__(self, url: str, dest: Path, sig: _Signals):
+        super().__init__()
+        self.url, self.dest, self.sig = url, dest, sig
+
+    def run(self):
+        try:
+            updater.download(self.url, self.dest,
+                             lambda d, t: self.sig.dl_progress.emit(d, t))
+            self.sig.dl_done.emit(self.dest)
+        except Exception as e:
+            log.exception("update download failed")
+            self.sig.dl_failed.emit(str(e))
 
 
 class _PickTask(QRunnable):
@@ -102,12 +148,19 @@ class Controller(QObject):
         self.sig = _Signals()
         self.sig.picked.connect(self._on_picked)
         self.sig.applied.connect(self._on_applied)
+        self.sig.update_found.connect(self._on_update_found)
+        self.sig.dl_progress.connect(self._on_dl_progress)
+        self.sig.dl_done.connect(self._on_dl_done)
+        self.sig.dl_failed.connect(self._on_dl_failed)
         self._last_lock = None       # ключ останнього застосованого lock (анти-churn)
         self.sig.failed.connect(
             lambda m: self._notify(tr("Update failed: {msg}").format(msg=m)))
         self._carousel_pos = 0
         self._last_apply_note = 0.0
         self._dlg = None
+        self._update = None          # інфо про доступне оновлення
+        self._progress = None
+        self._dl_dest = None
         _apply_language(self.cfg.get("language", "auto"))
 
         self.icon = make_icon()
@@ -122,12 +175,23 @@ class Controller(QObject):
         self._reschedule()
         QTimer.singleShot(300, self.apply)   # перший раз — невдовзі після старту
 
+        # перевірка оновлень: за 5 с після старту й далі раз на 6 годин
+        self.updateTimer = QTimer(self)
+        self.updateTimer.timeout.connect(self._check_updates)
+        self.updateTimer.start(6 * 60 * 60 * 1000)
+        QTimer.singleShot(5000, self._check_updates)
+
     # ---- меню ----
     def _build_menu(self):
         m = QMenu()
         self.statusAct = m.addAction(__app_name__)
         self.statusAct.setEnabled(False)
         m.addSeparator()
+        if self._update:             # пункт з'являється лише за наявності оновлення
+            act = m.addAction("⬆ " + tr("Update to {v}…").format(
+                v=self._update["version"]))
+            act.triggered.connect(self._do_update)
+            m.addSeparator()
         m.addAction(tr("Update now"), self.apply)
         m.addAction(tr("Settings…"), self.open_settings)
         m.addSeparator()
@@ -145,6 +209,84 @@ class Controller(QObject):
         from .about_dialog import AboutDialog
         dlg = AboutDialog()
         dlg.exec()
+
+    # ---- оновлення ----
+    def _check_updates(self):
+        if self.cfg.get("check_updates", True):
+            self.pool.start(_CheckTask(self.sig))
+
+    def _on_update_found(self, info):
+        self._update = info
+        if not info:
+            return
+        self._build_menu()           # додати пункт «⬆ Оновити…»
+        if info["version"] != self.cfg.get("last_notified_version", ""):
+            self.cfg["last_notified_version"] = info["version"]
+            cfg.save(self.cfg)
+            if QSystemTrayIcon.supportsMessages():
+                self.tray.showMessage(
+                    tr("Update available"),
+                    tr("New version {v} is available").format(v=info["version"]),
+                    self.icon, 6000)
+
+    def _do_update(self):
+        info = self._update
+        if not info:
+            return
+        # із сорсів або без бінарного артефакта — просто відкриваємо релізи
+        if not updater.can_self_update(info["assets"]):
+            QDesktopServices.openUrl(QUrl(info["url"]))
+            return
+        if QMessageBox.question(
+                None, tr("Update available"),
+                tr("Download and install version {v} now?").format(
+                    v=info["version"])) != QMessageBox.StandardButton.Yes:
+            return
+        url = updater.asset_url(info["assets"])
+        if sys.platform == "win32":
+            self._dl_dest = Path(tempfile.gettempdir()) / "adaptive-wallpaper-setup.exe"
+        else:                        # Linux: качаємо поряд із бінарником (та сама ФС)
+            self._dl_dest = Path(sys.argv[0]).resolve().with_suffix(".new")
+        self._progress = QProgressDialog(tr("Downloading update…"),
+                                         tr("Cancel"), 0, 100, None)
+        self._progress.setWindowTitle(__app_name__)
+        self._progress.setMinimumDuration(0)
+        self._progress.setAutoClose(False)
+        self._progress.canceled.connect(self._cancel_update)
+        self.pool.start(_DownloadTask(url, self._dl_dest, self.sig))
+
+    def _cancel_update(self):
+        self._dl_dest = None         # ігнорувати результат, що ще качається
+
+    def _on_dl_progress(self, done, total):
+        if self._progress and self._dl_dest:
+            self._progress.setValue(int(done * 100 / total) if total else 0)
+
+    def _on_dl_done(self, dest):
+        if self._progress:
+            self._progress.close()
+            self._progress = None
+        if self._dl_dest is None:    # скасовано
+            Path(dest).unlink(missing_ok=True)
+            return
+        self._dl_dest = None
+        try:
+            restart = updater.apply_update(Path(dest))
+        except Exception as e:
+            log.exception("apply update failed")
+            self._notify(tr("Update failed: {msg}").format(msg=str(e)))
+            return
+        if restart:                  # Linux: перезапуститись на нову версію
+            os.execv(restart[0], restart)
+        else:                        # Windows: інсталятор перебере на себе
+            self.app.quit()
+
+    def _on_dl_failed(self, msg):
+        if self._progress:
+            self._progress.close()
+            self._progress = None
+        self._dl_dest = None
+        self._notify(tr("Update failed: {msg}").format(msg=msg))
 
     def _on_activated(self, reason):
         if reason == QSystemTrayIcon.ActivationReason.Trigger:

@@ -49,6 +49,13 @@ Tray menu:
   to a fixed value in Settings.
 - **Carousel** — cycle through all frames on a fixed interval.
 
+### Updates
+
+The app checks GitHub Releases in the background. When a newer version is out you
+get a one-time tray notification and an **⬆ Update to vX.Y.Z…** item in the menu;
+one click downloads and installs it (Windows runs the installer, the Linux binary
+replaces itself and restarts). Turn it off in Settings → **Check for updates**.
+
 ### Lock screen
 
 Settings → **Lock screen** controls the lock-screen image independently of the

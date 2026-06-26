@@ -21,6 +21,8 @@ DEFAULTS = {
     "lock_backup": None,         # знімок оригіналу до керування (для відновлення)
     "language": "auto",          # мова інтерфейсу: auto | en | uk
     "theme": "auto",             # тема: auto (за системою) | dark | light
+    "check_updates": True,       # ненав'язлива перевірка нових версій
+    "last_notified_version": "", # щоб не сповіщати про ту саму версію повторно
 }
 
 

@@ -175,6 +175,12 @@ class SettingsDialog(QDialog):
         self.langBox = self._combo(_LANG, self._cfg.get("language", "auto"),
                                    self._on_lang_change)
         self._row(form, "Language:", self.langBox)
+
+        self.checkUpdatesChk = QCheckBox(tr("Check for updates"))
+        self.checkUpdatesChk.setChecked(bool(self._cfg.get("check_updates", True)))
+        self.checkUpdatesChk.toggled.connect(self._schedule_apply)
+        self._tr_labels.append((self.checkUpdatesChk, "Check for updates"))
+        form.addRow("", self.checkUpdatesChk)
         return frame
 
     def _adaptive_card(self) -> QFrame:
@@ -331,6 +337,7 @@ class SettingsDialog(QDialog):
             "lock_file": self.lockFileBox.currentData() or "",
             "language": self.langBox.currentData(),
             "theme": self.themeBox.currentData(),
+            "check_updates": self.checkUpdatesChk.isChecked(),
         }
 
     def _refresh_preview(self):

@@ -4,6 +4,15 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/), and the project follows
 [Semantic Versioning](https://semver.org/).
 
+## [1.3.3]
+
+### Added
+- **In-app updates** — an unobtrusive check against GitHub Releases; when a newer
+  version exists you get a one-time tray notification and an *Update to vX.Y.Z…*
+  item in the menu. One click downloads and installs it (Windows runs the
+  `setup.exe`; the Linux binary replaces itself and restarts; from source it
+  opens the releases page). Toggle in Settings → *Check for updates*.
+
 ## [1.3.2]
 
 ### Added
