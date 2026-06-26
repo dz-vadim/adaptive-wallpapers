@@ -15,27 +15,25 @@ the desktop wallpaper via the Win32 API.
   - `pip install pillow` is only needed if you also run image-generation/editing
     tooling — skip it otherwise.
 
-## Option 1 — prebuilt exe (no Python needed)
+## Option 1 — installer (recommended, no Python needed)
 
-Grab **adaptive-wallpaper-windows.zip** from the
-[Releases](https://github.com/dz-vadim/adaptive-wallpapers/releases) page and
-extract it anywhere. You get `adaptive-wallpaper.exe` next to a `wallpapers/`
-folder (the exe looks for `wallpapers/` beside itself).
+Grab **adaptive-wallpaper-setup.exe** from the
+[Releases](https://github.com/dz-vadim/adaptive-wallpapers/releases) page and run
+it. The installer (Inno Setup, per-user, **no admin**) sets up the GUI tray app,
+shortcuts, an optional *Run at login* task, and unpacks all 48 wallpapers next to
+the program. Launch it and a coffee-cup icon appears in the system tray.
 
-```bat
-adaptive-wallpaper.exe
-adaptive-wallpaper.exe --dry-run
-```
+Prefer no install? Take **adaptive-wallpaper-windows-portable.zip** — a folder
+with `adaptive-wallpaper.exe` next to `wallpapers/`; just run the exe.
 
-Schedule it (no Python required):
+> Builds are **unsigned**, so SmartScreen may warn on first run — choose
+> *More info → Run anyway*. The app ships as a Nuitka **standalone** folder
+> wrapped in an installer (not a self-extracting onefile), which causes far
+> fewer antivirus false positives. The only full fix is a code-signing
+> certificate.
 
-```bat
-schtasks /create /sc minute /mo 15 /tn AdaptiveWallpaper /tr "C:\path\to\adaptive-wallpaper.exe"
-```
-
-> The exe is built with Nuitka (no UPX) but **unsigned**, so SmartScreen or an
-> antivirus may warn on first run — choose *More info → Run anyway*. A signed
-> build would remove this; it needs a code-signing certificate.
+The lock-screen option works on Windows too (via the built-in WinRT API through
+PowerShell — no extra dependency).
 
 ## Option 2 — run the Python script
 

@@ -15,7 +15,7 @@ from .icon import ICON_NAME, png_path, svg_path
 
 def _launch_command() -> list[str]:
     """Команда, якою стартувати застосунок (для автозапуску)."""
-    if getattr(sys, "frozen", False) or "__compiled__" in globals():
+    if paths.is_frozen():
         return [str(Path(sys.argv[0]).resolve())]
     return [sys.executable, "-m", "adaptive_wallpaper"]
 

@@ -57,16 +57,23 @@ jobs:
             dist/adaptive-wallpaper
             adaptive-wallpaper-linux.tar.gz
           body: |
-            ## Adaptive Coffee Wallpaper — binaries
+            ## Adaptive Coffee Wallpaper
 
-            - **adaptive-wallpaper-linux.tar.gz** / **adaptive-wallpaper-windows.zip**
-              — GUI tray app + усі 48 шпалер. Розпакуй і запусти бінарник.
-            - Окремі бінарники — без шпалер (вкажи теку в налаштуваннях або
-              `--folder`, або поклади `wallpapers/` поруч).
+            **Windows:**
+            - **adaptive-wallpaper-setup.exe** — звичайний інсталятор (Inno Setup):
+              ставить програму, ярлики, опційний автозапуск і розпаковує всі 48
+              шпалер. Без прав адміністратора. **Рекомендовано.**
+            - **adaptive-wallpaper-windows-portable.zip** — портативна версія
+              (папка з exe + шпалери), без встановлення.
 
-            Перший запуск ставить шпалеру в трей; права адміністратора не потрібні.
-            Білди **без code-signing** — SmartScreen/антивірус може попередити
-            на першому запуску (*More info → Run anyway*).
+            **Linux:**
+            - **adaptive-wallpaper-linux.tar.gz** — GUI-трей + усі 48 шпалер.
+            - **adaptive-wallpaper** — окремий бінарник (без шпалер; вкажи теку
+              або `--install`).
+
+            Білди **без code-signing** — SmartScreen може попередити на першому
+            запуску (*More info → Run anyway*). Standalone-збірка та інсталятор
+            помітно знижують хибні спрацювання антивірусів порівняно з onefile.
 
   # ---------------- Windows ----------------
   windows:
@@ -80,12 +87,15 @@ jobs:
       - name: Install build deps
         run: python -m pip install nuitka PyQt6
 
-      - name: Build (Nuitka, PyQt6, no console)
+      # standalone (папка справжніх DLL), НЕ onefile: onefile розпаковується в
+      # temp при кожному запуску, що тригерить евристики антивірусів. Папка +
+      # підписаний-стилем інсталятор Inno Setup викликають значно менше підозр.
+      - name: Build (Nuitka standalone, PyQt6, no console)
         working-directory: app
         shell: pwsh
         run: |
           python -m nuitka `
-            --onefile `
+            --standalone `
             --assume-yes-for-downloads `
             --enable-plugin=pyqt6 `
             --include-package-data=adaptive_wallpaper `
@@ -93,25 +103,31 @@ jobs:
             --windows-console-mode=disable `
             "--company-name=dz-vadim" `
             "--product-name=Adaptive Coffee Wallpaper" `
-            "--file-version=1.2.0.0" `
-            "--product-version=1.2.0.0" `
+            "--file-version=1.3.0.0" `
+            "--product-version=1.3.0.0" `
             "--file-description=Sets the desktop wallpaper by season, time and weather" `
             --output-dir=../dist `
             --output-filename=adaptive-wallpaper.exe `
             run.py
 
-      - name: Package bundle (exe + wallpapers)
+      - name: Build installer (Inno Setup)
         shell: pwsh
         run: |
-          New-Item -ItemType Directory -Force -Path bundle | Out-Null
-          Copy-Item dist/adaptive-wallpaper.exe bundle/
-          Copy-Item -Recurse wallpapers bundle/wallpapers
-          if (Test-Path docs/app.md) { Copy-Item docs/app.md bundle/README.txt }
-          Compress-Archive -Path bundle/* -DestinationPath adaptive-wallpaper-windows.zip -Force
+          choco install innosetup --no-progress -y
+          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" `
+            /DMyAppVersion=1.3.0 windows\installer.iss
+
+      - name: Portable zip (standalone + wallpapers)
+        shell: pwsh
+        run: |
+          Copy-Item -Recurse wallpapers dist/run.dist/wallpapers
+          if (Test-Path docs/app.md) { Copy-Item docs/app.md dist/run.dist/README.txt }
+          Compress-Archive -Path dist/run.dist/* `
+            -DestinationPath adaptive-wallpaper-windows-portable.zip -Force
 
       - name: Upload
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            dist/adaptive-wallpaper.exe
-            adaptive-wallpaper-windows.zip
+            dist/adaptive-wallpaper-setup.exe
+            adaptive-wallpaper-windows-portable.zip

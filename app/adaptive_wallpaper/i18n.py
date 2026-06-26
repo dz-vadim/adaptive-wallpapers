@@ -57,6 +57,17 @@ _UK = {
     "no wallpapers found": "шпалер не знайдено",
     "no matching file": "немає відповідного файлу",
     "Apply now": "Застосувати",
+    "Apply": "Застосувати",
+    "Close": "Закрити",
+    "Settings applied": "Налаштування застосовано",
+    "Applied": "Застосовано",
+    "Wallpaper by season, time and weather":
+        "Шпалери за сезоном, часом і погодою",
+    "General": "Загальне",
+    "Adaptive": "Адаптивно",
+    "Carousel": "Карусель",
+    "Lock screen": "Екран блокування",
+    "Now showing": "Зараз показано",
     # --- трей-меню ---
     "Update now": "Оновити зараз",
     "Settings…": "Налаштування…",

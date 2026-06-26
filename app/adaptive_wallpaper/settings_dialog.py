@@ -1,17 +1,18 @@
-"""Вікно налаштувань (PyQt6)."""
+"""Вікно налаштувань (PyQt6): сучасний тематичний вигляд, реактивна мова,
+авто-застосування з підтвердженням."""
 from __future__ import annotations
 
 from pathlib import Path
 
-from PyQt6.QtCore import Qt
+from PyQt6.QtCore import Qt, QTimer
 from PyQt6.QtGui import QPixmap
 from PyQt6.QtWidgets import (
     QCheckBox,
     QComboBox,
     QDialog,
-    QDialogButtonBox,
     QFileDialog,
     QFormLayout,
+    QFrame,
     QHBoxLayout,
     QLabel,
     QLineEdit,
@@ -22,7 +23,7 @@ from PyQt6.QtWidgets import (
 )
 
 from . import engine, paths
-from .i18n import tr
+from .i18n import set_language, tr
 from .icon import make_icon
 
 _WEATHER = [("Auto (live)", "auto"), ("Clear", "clear"),
@@ -39,128 +40,245 @@ _LOCK = [("Keep original (restore pre-app)", "skip"),
 _LANG = [("Automatic", "auto"), ("English", "en"), ("Українська", "uk")]
 
 
-def _combo(pairs: list[tuple[str, str]], value: str) -> QComboBox:
-    c = QComboBox()
-    for text, val in pairs:
-        c.addItem(tr(text), val)
-    i = c.findData(value)
-    c.setCurrentIndex(max(0, i))
-    return c
-
-
 class SettingsDialog(QDialog):
-    """Редагує копію конфіга; on_apply(cfg) застосовує зміни негайно."""
+    """Редагує копію конфіга. on_apply(cfg) застосовує негайно;
+    on_language(lang) (опц.) — щоб застосунок реактивно перемалював меню."""
 
-    def __init__(self, cfg: dict, on_apply, parent=None):
+    def __init__(self, cfg: dict, on_apply, on_language=None, parent=None):
         super().__init__(parent)
-        self.setWindowTitle(tr("Adaptive Coffee Wallpaper — Settings"))
-        self.setWindowIcon(make_icon())
-        self.setMinimumWidth(440)
         self._cfg = dict(cfg)
         self._on_apply = on_apply
+        self._on_language = on_language
+        self._building = True
+        self._tr_labels: list[tuple[QLabel, str]] = []
+        self._tr_combos: list[tuple[QComboBox, list]] = []
 
+        self.setWindowIcon(make_icon())
+        self.setMinimumWidth(470)
+
+        # авто-застосування з дебаунсом (реактивність)
+        self._applyTimer = QTimer(self)
+        self._applyTimer.setSingleShot(True)
+        self._applyTimer.setInterval(450)
+        self._applyTimer.timeout.connect(self._apply)
+
+        root = QVBoxLayout(self)
+        root.setContentsMargins(16, 16, 16, 14)
+        root.setSpacing(12)
+        root.addWidget(self._header())
+        root.addWidget(self._general_card())
+        root.addWidget(self._adaptive_card())
+        root.addWidget(self._lock_card())
+        root.addWidget(self._preview_card())
+        root.addLayout(self._footer())
+
+        self._building = False
+        self._toggle_mode()
+        self._toggle_lock()
+        self._refresh_preview()
+
+    # ---------- будівельні блоки ----------
+    def _card(self, title_key: str) -> tuple[QFrame, QFormLayout]:
+        frame = QFrame()
+        frame.setObjectName("Card")
+        outer = QVBoxLayout(frame)
+        outer.setContentsMargins(14, 10, 14, 12)
+        if title_key:
+            t = QLabel(tr(title_key))
+            t.setObjectName("Section")
+            self._tr_labels.append((t, title_key))
+            outer.addWidget(t)
         form = QFormLayout()
-        self.modeBox = _combo(_MODE, self._cfg["mode"])
-        self.modeBox.currentIndexChanged.connect(self._toggle_mode)
-        form.addRow(tr("Mode:"), self.modeBox)
+        form.setLabelAlignment(Qt.AlignmentFlag.AlignRight)
+        form.setHorizontalSpacing(14)
+        form.setVerticalSpacing(8)
+        outer.addLayout(form)
+        return frame, form
+
+    def _row(self, form: QFormLayout, key: str, field) -> QLabel:
+        lbl = QLabel(tr(key))
+        self._tr_labels.append((lbl, key))
+        form.addRow(lbl, field)
+        return lbl
+
+    def _combo(self, pairs, value: str, on_change=None) -> QComboBox:
+        c = QComboBox()
+        for text, val in pairs:
+            c.addItem(tr(text), val)
+        c.setCurrentIndex(max(0, c.findData(value)))
+        self._tr_combos.append((c, pairs))
+        if on_change:
+            c.currentIndexChanged.connect(on_change)
+        c.currentIndexChanged.connect(self._schedule_apply)
+        return c
+
+    def _header(self) -> QWidget:
+        w = QWidget()
+        h = QHBoxLayout(w)
+        h.setContentsMargins(2, 0, 2, 2)
+        ic = QLabel()
+        ic.setPixmap(make_icon().pixmap(44, 44))
+        h.addWidget(ic)
+        col = QVBoxLayout()
+        col.setSpacing(0)
+        self.titleLbl = QLabel("Adaptive Coffee Wallpaper")
+        self.titleLbl.setObjectName("Title")
+        self.subLbl = QLabel(tr("Wallpaper by season, time and weather"))
+        self.subLbl.setObjectName("Subtitle")
+        self._tr_labels.append((self.subLbl, "Wallpaper by season, time and weather"))
+        col.addWidget(self.titleLbl)
+        col.addWidget(self.subLbl)
+        h.addLayout(col)
+        h.addStretch(1)
+        return w
+
+    def _general_card(self) -> QFrame:
+        frame, form = self._card("General")
+        self.modeBox = self._combo(_MODE, self._cfg["mode"], self._toggle_mode)
+        self._row(form, "Mode:", self.modeBox)
 
         folderRow = QHBoxLayout()
         self.folderEdit = QLineEdit(self._cfg.get("folder", ""))
         found = paths.find_wallpapers(self._cfg.get("folder", ""))
         self.folderEdit.setPlaceholderText(
             f"auto: {found}" if found else tr("auto-detect (none found yet)"))
-        browse = QPushButton(tr("Browse…"))
-        browse.clicked.connect(self._browse)
+        self.folderEdit.editingFinished.connect(self._schedule_apply)
+        self.folderEdit.textChanged.connect(self._refresh_preview)
+        self.browseBtn = QPushButton(tr("Browse…"))
+        self.browseBtn.clicked.connect(self._browse)
         folderRow.addWidget(self.folderEdit)
-        folderRow.addWidget(browse)
+        folderRow.addWidget(self.browseBtn)
         fw = QWidget()
         fw.setLayout(folderRow)
-        form.addRow(tr("Wallpapers folder:"), fw)
+        self._row(form, "Wallpapers folder:", fw)
 
+        self.langBox = self._combo(_LANG, self._cfg.get("language", "auto"),
+                                   self._on_lang_change)
+        self._row(form, "Language:", self.langBox)
+        return frame
+
+    def _adaptive_card(self) -> QFrame:
+        frame, form = self._card("Adaptive")
         self.locationEdit = QLineEdit(self._cfg.get("location", ""))
         self.locationEdit.setPlaceholderText(tr("blank = auto by IP"))
-        form.addRow(tr("Weather location:"), self.locationEdit)
+        self.locationEdit.editingFinished.connect(self._schedule_apply)
+        self.locLbl = self._row(form, "Weather location:", self.locationEdit)
 
         self.intervalSpin = QSpinBox()
         self.intervalSpin.setRange(1, 240)
         self.intervalSpin.setValue(int(self._cfg.get("interval_minutes", 20)))
-        form.addRow(tr("Update every (min):"), self.intervalSpin)
+        self.intervalSpin.valueChanged.connect(self._schedule_apply)
+        self.intLbl = self._row(form, "Update every (min):", self.intervalSpin)
 
         self.carouselSpin = QSpinBox()
         self.carouselSpin.setRange(1, 1440)
         self.carouselSpin.setValue(int(self._cfg.get("carousel_minutes", 30)))
-        form.addRow(tr("Carousel change (min):"), self.carouselSpin)
+        self.carouselSpin.valueChanged.connect(self._schedule_apply)
+        self.carLbl = self._row(form, "Carousel change (min):", self.carouselSpin)
 
-        self.weatherBox = _combo(_WEATHER, self._cfg.get("weather", "auto"))
-        self.seasonBox = _combo(_SEASON, self._cfg.get("season", "auto"))
-        self.timeBox = _combo(_TIME, self._cfg.get("time", "auto"))
-        form.addRow(tr("Weather:"), self.weatherBox)
-        form.addRow(tr("Season:"), self.seasonBox)
-        form.addRow(tr("Time of day:"), self.timeBox)
+        self.weatherBox = self._combo(_WEATHER, self._cfg.get("weather", "auto"),
+                                      self._refresh_preview)
+        self.seasonBox = self._combo(_SEASON, self._cfg.get("season", "auto"),
+                                     self._refresh_preview)
+        self.timeBox = self._combo(_TIME, self._cfg.get("time", "auto"),
+                                   self._refresh_preview)
+        self.wLbl = self._row(form, "Weather:", self.weatherBox)
+        self.sLbl = self._row(form, "Season:", self.seasonBox)
+        self.tLbl = self._row(form, "Time of day:", self.timeBox)
+        return frame
 
-        self.lockBox = _combo(_LOCK, self._cfg.get("lock_mode", "skip"))
-        self.lockBox.currentIndexChanged.connect(self._toggle_lock)
-        form.addRow(tr("Lock screen:"), self.lockBox)
-
+    def _lock_card(self) -> QFrame:
+        frame, form = self._card("Lock screen")
+        self.lockBox = self._combo(_LOCK, self._cfg.get("lock_mode", "skip"),
+                                   self._toggle_lock)
+        self._row(form, "Lock screen:", self.lockBox)
         self.lockFileBox = QComboBox()
         for fn in engine.all_files():
             self.lockFileBox.addItem(fn, fn)
-        j = self.lockFileBox.findData(self._cfg.get("lock_file", ""))
-        self.lockFileBox.setCurrentIndex(max(0, j))
-        form.addRow(tr("Lock image:"), self.lockFileBox)
-
-        self.langBox = _combo(_LANG, self._cfg.get("language", "auto"))
-        form.addRow(tr("Language:"), self.langBox)
-        self.langNote = QLabel(
-            tr("Language change applies after reopening this window."))
-        self.langNote.setWordWrap(True)
-        self.langNote.setStyleSheet("color:palette(mid);")
-        form.addRow("", self.langNote)
+        self.lockFileBox.setCurrentIndex(
+            max(0, self.lockFileBox.findData(self._cfg.get("lock_file", ""))))
+        self.lockFileBox.currentIndexChanged.connect(self._schedule_apply)
+        self._row(form, "Lock image:", self.lockFileBox)
 
         self.autostartChk = QCheckBox(tr("Run at login"))
         self.autostartChk.setChecked(bool(self._cfg.get("autostart", False)))
+        self.autostartChk.toggled.connect(self._schedule_apply)
+        self._tr_labels.append((self.autostartChk, "Run at login"))
         form.addRow("", self.autostartChk)
+        return frame
 
-        # прев'ю
+    def _preview_card(self) -> QFrame:
+        frame, _ = self._card("Now showing")
+        lay = frame.layout()
         self.preview = QLabel(alignment=Qt.AlignmentFlag.AlignCenter)
-        self.preview.setFixedSize(288, 162)
-        self.preview.setStyleSheet("border:1px solid palette(mid);")
+        self.preview.setFixedSize(300, 169)
+        self.preview.setStyleSheet("border-radius:8px; background:#1a130d;")
         self.previewName = QLabel("", alignment=Qt.AlignmentFlag.AlignCenter)
-        self.previewName.setStyleSheet("color:palette(mid);")
+        self.previewName.setObjectName("Subtitle")
+        lay.addWidget(self.preview, alignment=Qt.AlignmentFlag.AlignCenter)
+        lay.addWidget(self.previewName)
+        return frame
 
-        buttons = QDialogButtonBox()
-        applyBtn = buttons.addButton(tr("Apply now"),
-                                     QDialogButtonBox.ButtonRole.ApplyRole)
-        buttons.addButton(QDialogButtonBox.StandardButton.Close)
-        applyBtn.clicked.connect(self._apply)
-        buttons.rejected.connect(self.reject)
-        buttons.button(QDialogButtonBox.StandardButton.Close).clicked.connect(
-            self.accept)
+    def _footer(self) -> QHBoxLayout:
+        h = QHBoxLayout()
+        self.statusLbl = QLabel("")
+        self.statusLbl.setObjectName("Subtitle")
+        h.addWidget(self.statusLbl)
+        h.addStretch(1)
+        self.applyBtn = QPushButton(tr("Apply"))
+        self.applyBtn.setObjectName("Primary")
+        self.applyBtn.clicked.connect(self._apply)
+        self.closeBtn = QPushButton(tr("Close"))
+        self.closeBtn.clicked.connect(self.accept)
+        h.addWidget(self.applyBtn)
+        h.addWidget(self.closeBtn)
+        return h
 
-        root = QVBoxLayout(self)
-        root.addLayout(form)
-        root.addWidget(self.preview, alignment=Qt.AlignmentFlag.AlignCenter)
-        root.addWidget(self.previewName)
-        root.addWidget(buttons)
+    # ---------- логіка ----------
+    def _schedule_apply(self):
+        if not self._building:
+            self._applyTimer.start()
 
-        for w in (self.weatherBox, self.seasonBox, self.timeBox):
-            w.currentIndexChanged.connect(self._refresh_preview)
-        self.folderEdit.textChanged.connect(self._refresh_preview)
-        self._toggle_mode()
-        self._toggle_lock()
-        self._refresh_preview()
-
-    # ---- helpers ----
     def _toggle_lock(self):
         self.lockFileBox.setEnabled(self.lockBox.currentData() == "library")
 
     def _toggle_mode(self):
         carousel = self.modeBox.currentData() == "carousel"
-        self.intervalSpin.setEnabled(not carousel)
-        for w in (self.weatherBox, self.seasonBox, self.timeBox,
-                  self.locationEdit):
-            w.setEnabled(not carousel)
-        self.carouselSpin.setEnabled(carousel)
+        for w in (self.locationEdit, self.intervalSpin, self.weatherBox,
+                  self.seasonBox, self.timeBox, self.locLbl, self.intLbl,
+                  self.wLbl, self.sLbl, self.tLbl):
+            w.setVisible(not carousel)
+        for w in (self.carouselSpin, self.carLbl):
+            w.setVisible(carousel)
+        self._refresh_preview()
+
+    def _on_lang_change(self):
+        # реактивно: одразу перемкнути мову інтерфейсу
+        set_language(self._effective_lang(self.langBox.currentData()))
+        self._retranslate()
+        if self._on_language:
+            self._on_language(self.langBox.currentData())
+
+    @staticmethod
+    def _effective_lang(lang: str) -> str:
+        from .i18n import detect
+        return detect() if lang == "auto" else lang
+
+    def _retranslate(self):
+        self.setWindowTitle(tr("Adaptive Coffee Wallpaper — Settings"))
+        for lbl, key in self._tr_labels:
+            lbl.setText(tr(key))
+        for combo, pairs in self._tr_combos:
+            data = combo.currentData()
+            combo.blockSignals(True)
+            for i, (text, _val) in enumerate(pairs):
+                combo.setItemText(i, tr(text))
+            combo.setCurrentIndex(max(0, combo.findData(data)))
+            combo.blockSignals(False)
+        self.browseBtn.setText(tr("Browse…"))
+        self.applyBtn.setText(tr("Apply"))
+        self.closeBtn.setText(tr("Close"))
+        self.locationEdit.setPlaceholderText(tr("blank = auto by IP"))
         self._refresh_preview()
 
     def _browse(self):
@@ -168,6 +286,7 @@ class SettingsDialog(QDialog):
         d = QFileDialog.getExistingDirectory(self, tr("Choose wallpapers folder"), start)
         if d:
             self.folderEdit.setText(d)
+            self._schedule_apply()
 
     def _collect(self) -> dict:
         return {
@@ -186,17 +305,18 @@ class SettingsDialog(QDialog):
         }
 
     def _refresh_preview(self):
+        if self._building:
+            return
         folder = paths.find_wallpapers(self.folderEdit.text().strip())
         if not folder:
             self.preview.setText(tr("no wallpapers found"))
             self.previewName.setText("")
             return
-        # без мережі для прев'ю: лише локальна евразистика (sezon за датою, час за годиною)
+        import datetime as _dt
+        now = _dt.datetime.now()
         season = self.seasonBox.currentData()
         time = self.timeBox.currentData()
         weather = self.weatherBox.currentData()
-        import datetime as _dt
-        now = _dt.datetime.now()
         s = season if season != "auto" else engine.month_to_season(now.month)
         t = time if time != "auto" else engine.hour_to_time(now.hour)
         w = weather if weather != "auto" else "clear"
@@ -212,8 +332,11 @@ class SettingsDialog(QDialog):
             self.previewName.setText("")
 
     def _apply(self):
+        self._applyTimer.stop()
         self._cfg = self._collect()
         self._on_apply(dict(self._cfg))
+        import datetime as _dt
+        self.statusLbl.setText(f"✓ {tr('Applied')}  {_dt.datetime.now():%H:%M:%S}")
         self._refresh_preview()
 
     def result_config(self) -> dict:

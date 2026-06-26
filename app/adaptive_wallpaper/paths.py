@@ -15,13 +15,21 @@ _WINDOWS = sys.platform == "win32"
 _MACOS = sys.platform == "darwin"
 
 
-def _frozen() -> bool:
-    return getattr(sys, "frozen", False) or "__compiled__" in globals()
+def is_frozen() -> bool:
+    """Чи запущено зі «замороженого» білда (Nuitka/PyInstaller).
+
+    Nuitka ставить `__compiled__` лише в головному модулі, тож перевіряємо
+    саме його, а не globals() цього файлу.
+    """
+    if getattr(sys, "frozen", False):       # PyInstaller
+        return True
+    main = sys.modules.get("__main__")
+    return bool(getattr(main, "__compiled__", False))  # Nuitka
 
 
 def exe_dir() -> Path:
     """Тека поряд із виконуваним файлом (для bundle: exe + wallpapers/)."""
-    if _frozen():
+    if is_frozen():
         return Path(sys.argv[0]).resolve().parent
     return Path(sys.executable).resolve().parent
 

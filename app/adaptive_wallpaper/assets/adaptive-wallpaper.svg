@@ -1,39 +1,41 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <svg width="64" height="64" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
   <defs>
-    <linearGradient id="cup" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#8a634a"/>
-      <stop offset="1" stop-color="#5b3d2c"/>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#8c5a3a"/>
+      <stop offset="1" stop-color="#3a2417"/>
     </linearGradient>
-    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#2a3550"/>
-      <stop offset="1" stop-color="#101622"/>
+    <radialGradient id="glow" cx="0.5" cy="0.4" r="0.55">
+      <stop offset="0" stop-color="#ffcaa0" stop-opacity="0.45"/>
+      <stop offset="1" stop-color="#ffcaa0" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="cup" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#f7eed8"/>
+      <stop offset="1" stop-color="#e4d2af"/>
     </linearGradient>
   </defs>
 
-  <!-- neon-ish rounded backdrop -->
-  <rect x="4" y="4" width="56" height="56" rx="14" fill="url(#bg)"/>
-  <rect x="4" y="4" width="56" height="56" rx="14" fill="none"
-        stroke="#ff5fae" stroke-opacity="0.55" stroke-width="2"/>
+  <!-- warm coffee backdrop, no outline -->
+  <rect x="2" y="2" width="60" height="60" rx="15" fill="url(#bg)"/>
+  <rect x="2" y="2" width="60" height="60" rx="15" fill="url(#glow)"/>
 
   <!-- steam -->
-  <g fill="none" stroke="#cfe3ff" stroke-width="3" stroke-linecap="round"
-     stroke-opacity="0.9">
-    <path d="M26 20 q-4 -5 0 -10"/>
-    <path d="M38 20 q-4 -5 0 -10"/>
+  <g fill="none" stroke="#f7eed8" stroke-width="3" stroke-linecap="round"
+     stroke-opacity="0.85">
+    <path d="M27 19 q-5 -5 0 -10"/>
+    <path d="M37 19 q-5 -5 0 -10"/>
   </g>
 
-  <!-- saucer -->
-  <ellipse cx="32" cy="50" rx="20" ry="4.5" fill="#3e2b20"/>
-
-  <!-- cup body -->
-  <path d="M17 27 h30 v8 a15 15 0 0 1 -30 0 z" fill="url(#cup)"
-        stroke="#3e2b20" stroke-width="2.5" stroke-linejoin="round"/>
-
   <!-- handle -->
-  <path d="M47 29 a8 8 0 0 1 0 14" fill="none" stroke="#3e2b20"
-        stroke-width="3.5"/>
+  <path d="M44 30 a9 9 0 0 1 0 15" fill="none" stroke="#f7eed8"
+        stroke-width="5"/>
+
+  <!-- cup body (light, high contrast on dark bg) -->
+  <path d="M15 26 h30 v9 a15 15 0 0 1 -30 0 z" fill="url(#cup)"/>
 
   <!-- coffee surface -->
-  <ellipse cx="32" cy="28" rx="15" ry="3.4" fill="#2a1c14"/>
+  <ellipse cx="30" cy="26" rx="15" ry="3.4" fill="#523019"/>
+
+  <!-- saucer -->
+  <ellipse cx="32" cy="50" rx="19" ry="3.4" fill="#2c1b10" fill-opacity="0.55"/>
 </svg>

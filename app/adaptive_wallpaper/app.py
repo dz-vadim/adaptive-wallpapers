@@ -1,6 +1,7 @@
 """Трей-застосунок: фонова зміна шпалери + меню + налаштування (PyQt6)."""
 from __future__ import annotations
 
+import time
 from pathlib import Path
 
 from PyQt6.QtCore import QLocale, QObject, QRunnable, QThreadPool, QTimer, pyqtSignal
@@ -11,7 +12,16 @@ from PyQt6.QtWidgets import (
     QSystemTrayIcon,
 )
 
-from . import __app_name__, __version__, engine, installer, lockscreen, paths
+from . import (
+    __app_name__,
+    __version__,
+    engine,
+    installer,
+    lockscreen,
+    paths,
+    single_instance,
+    style,
+)
 from . import config as cfg
 from . import wallpaper as wp
 from .i18n import detect, set_language, tr
@@ -64,6 +74,8 @@ class Controller(QObject):
         self.sig.failed.connect(
             lambda m: self._notify(tr("Update failed: {msg}").format(msg=m)))
         self._carousel_pos = 0
+        self._last_apply_note = 0.0
+        self._dlg = None
         _apply_language(self.cfg.get("language", "auto"))
 
         self.icon = make_icon()
@@ -117,7 +129,9 @@ class Controller(QObject):
         if self.cfg.get("mode") == "carousel":
             self._carousel_step(folder)
         else:
-            self.pool.start(_PickTask(folder, self.cfg, self.sig))
+            # знімок конфіга — воркер-потік не має читати спільний self.cfg,
+            # який змінює GUI-потік
+            self.pool.start(_PickTask(folder, dict(self.cfg), self.sig))
 
     def _carousel_step(self, folder: Path):
         files = [folder / n for n in engine.all_files() if (folder / n).exists()]
@@ -133,7 +147,9 @@ class Controller(QObject):
         if path is None:
             self._notify(tr("No file for {name}.").format(name=name))
             return
-        online = "" if info.get("online") else "  (offline guess)"
+        # суфікс лише коли погоду реально не вдалось отримати (online is False);
+        # None = детермінований вибір без мережі (ручні значення)
+        online = "  (offline guess)" if info.get("online") is False else ""
         self._set(Path(path), name, suffix=online)
 
     def _set(self, path: Path, name: str, suffix: str = ""):
@@ -169,11 +185,28 @@ class Controller(QObject):
 
     # ---- налаштування ----
     def open_settings(self):
-        dlg = SettingsDialog(self.cfg, self._apply_settings)
-        dlg.exec()
-        self._apply_settings(dlg.result_config())
+        if getattr(self, "_dlg", None) is not None:
+            self._dlg.raise_()
+            self._dlg.activateWindow()
+            return
+        self._dlg = SettingsDialog(self.cfg, self._apply_settings, self._on_language)
+        self._dlg.finished.connect(self._on_dialog_closed)
+        self._dlg.show()
+        self._dlg.raise_()
+        self._dlg.activateWindow()
+
+    def _on_dialog_closed(self, _result):
+        self._dlg = None
+
+    def _on_language(self, lang: str):
+        """Реактивна зміна мови з діалогу: одразу перемалювати меню."""
+        _apply_language(lang)
+        self._build_menu()
 
     def _apply_settings(self, new: dict):
+        changed = any(new.get(k) != self.cfg.get(k) for k in new)
+        if not changed:
+            return
         autostart_changed = new.get("autostart") != self.cfg.get("autostart")
         lang_changed = new.get("language") != self.cfg.get("language")
         self.cfg.update(new)
@@ -187,6 +220,12 @@ class Controller(QObject):
         self._carousel_pos = 0
         self._reschedule()
         self.apply()
+        # ненав'язливе підтвердження (з тротлінгом, щоб не спамити)
+        now = time.monotonic()
+        if QSystemTrayIcon.supportsMessages() and now - self._last_apply_note > 2.0:
+            self._last_apply_note = now
+            self.tray.showMessage(__app_name__, tr("Settings applied"),
+                                  self.icon, 2500)
 
     def _toggle_autostart(self, checked: bool):
         self.cfg["autostart"] = checked
@@ -219,6 +258,12 @@ def run_gui() -> int:
     app.setDesktopFileName(ICON_NAME)
     app.setWindowIcon(make_icon())         # іконка у заголовку вікон / панелі
     app.setQuitOnLastWindowClosed(False)   # закриття вікна не завершує застосунок
+    style.apply_theme(app)                 # темна «кавова» тема
+
+    # один екземпляр: другий запуск показує налаштування першому й виходить
+    if single_instance.already_running():
+        return 0
+
     if not QSystemTrayIcon.isSystemTrayAvailable():
         # без трея — хоч раз поставимо шпалеру й вийдемо
         folder = paths.find_wallpapers(cfg.load().get("folder", ""))
@@ -231,5 +276,10 @@ def run_gui() -> int:
             if path:
                 wp.set_wallpaper(path)
         return 0
-    app._controller = Controller(app)   # зберегти посилання, щоб трей не зник
+
+    server = single_instance.InstanceServer()
+    ctrl = Controller(app)
+    server.activated.connect(ctrl.open_settings)   # другий запуск → показати вікно
+    app._instance_server = server
+    app._controller = ctrl              # зберегти посилання, щоб трей не зник
     return app.exec()

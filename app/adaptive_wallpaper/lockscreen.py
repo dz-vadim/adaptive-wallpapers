@@ -129,24 +129,47 @@ def _set_linux(path: Path) -> bool | None:
 
 
 # ---------------- Windows ----------------
+# PowerShell-скрипт: ставить екран блокування через WinRT LockScreen API.
+# Без зовнішніх Python-залежностей — PowerShell є на кожному Windows.
+_PS_LOCKSCREEN = r"""
+param([Parameter(Mandatory=$true)][string]$Path)
+$ErrorActionPreference = 'Stop'
+Add-Type -AssemblyName System.Runtime.WindowsRuntime | Out-Null
+$asTaskGeneric = ([System.WindowsRuntimeSystemExtensions].GetMethods() |
+  Where-Object { $_.Name -eq 'AsTask' -and $_.GetParameters().Count -eq 1 -and
+  $_.GetParameters()[0].ParameterType.Name -eq 'IAsyncOperation`1' })[0]
+function Await($op, $t) {
+  $m = $asTaskGeneric.MakeGenericMethod($t)
+  $task = $m.Invoke($null, @($op)); $task.Wait(-1) | Out-Null; $task.Result
+}
+function AwaitAction($act) {
+  $m = ([System.WindowsRuntimeSystemExtensions].GetMethods() |
+    Where-Object { $_.Name -eq 'AsTask' -and $_.GetParameters().Count -eq 1 -and
+    -not $_.IsGenericMethod })[0]
+  $task = $m.Invoke($null, @($act)); $task.Wait(-1) | Out-Null
+}
+[Windows.Storage.StorageFile,Windows.Storage,ContentType=WindowsRuntime] | Out-Null
+[Windows.System.UserProfile.LockScreen,Windows.System.UserProfile,ContentType=WindowsRuntime] | Out-Null
+$file = Await ([Windows.Storage.StorageFile]::GetFileFromPathAsync($Path)) ([Windows.Storage.StorageFile])
+AwaitAction ([Windows.System.UserProfile.LockScreen]::SetImageFileAsync($file))
+"""
+
+
 def _set_windows(path: Path) -> bool | None:
+    import tempfile
     try:
-        import asyncio
-
-        from winsdk.windows.storage import StorageFile
-        from winsdk.windows.system.userprofile import LockScreen
+        with tempfile.NamedTemporaryFile("w", suffix=".ps1", delete=False,
+                                         encoding="utf-8") as f:
+            f.write(_PS_LOCKSCREEN)
+            script = f.name
+        proc = subprocess.run(
+            ["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass",
+             "-File", script, "-Path", str(path.resolve())],
+            capture_output=True, text=True, timeout=30)
+        Path(script).unlink(missing_ok=True)
+        return proc.returncode == 0
     except Exception:
-        return None  # без winsdk — не підтримуємо
-
-    async def _go():
-        f = await StorageFile.get_file_from_path_async(str(path.resolve()))
-        await LockScreen.set_image_file_async(f)
-
-    try:
-        asyncio.run(_go())
-        return True
-    except Exception:
-        return False
+        return None
 
 
 def set_lockscreen(path: Path) -> bool | None:
@@ -211,7 +234,8 @@ def manage_lock(conf: dict, target: Path | None) -> bool:
             set_lockscreen(Path(target))
     else:  # skip = зберегти/відновити той, що був до програми
         if conf.get("lock_backup"):
-            _restore(conf["lock_backup"])
-            conf["lock_backup"] = None
-            changed = True
+            ok = _restore(conf["lock_backup"])
+            if ok is not False:        # очистити лише якщо не провалилось
+                conf["lock_backup"] = None
+                changed = True
     return changed
